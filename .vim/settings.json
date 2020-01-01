@@ -1,0 +1,42 @@
+{
+  "rust": {
+    "sysroot": null,
+    "target": null,
+    "rustflags": null,
+    "clear_env_rust_log": true,
+    "build_lib": null,
+    "build_bin": null,
+    "cfg_test": false,
+    "unstable_features": false,
+    "wait_to_build": 1500,
+    "show_warnings": true,
+    "crate_blacklist": [
+      "cocoa",
+      "gleam",
+      "glium",
+      "idna",
+      "libc",
+      "openssl",
+      "rustc_serialize",
+      "serde",
+      "serde_json",
+      "typenum",
+      "unicode_normalization",
+      "unicode_segmentation",
+      "winapi"
+    ],
+    "build_on_save": false,
+    "features": [],
+    "all_features": false,
+    "no_default_features": false,
+    "racer_completion": true,
+    "clippy_preference": "opt-in",
+    "jobs": null,
+    "all_targets": true,
+    "target_dir": null,
+    "rustfmt_path": null,
+    "build_command": null,
+    "full_docs": null,
+    "show_hover_context": true
+  }
+}
