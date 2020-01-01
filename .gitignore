@@ -38,3 +38,9 @@ nbproject
 *.sublime-project
 *.sublime-workspace
 screeps.toml
+
+# Log files
+*.log
+
+# tag files
+tags
