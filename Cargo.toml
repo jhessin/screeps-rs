@@ -1,7 +1,7 @@
 [package]
-name = "screeps-starter-rust"
-version = "0.0.0"
-authors = []
+name = "screeps-rs"
+version = "0.0.1"
+authors = ["Sam Martin"]
 edition = "2018"
 
 [dependencies]
