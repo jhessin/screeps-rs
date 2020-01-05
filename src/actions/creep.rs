@@ -1,23 +1,13 @@
 //! Bring Creep Actions into a collection.
 
-mod default;
+mod harvester;
 
 use screeps::Creep;
-use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::types::GeneralError;
 
-pub use default::Default;
+pub use harvester::Harvester;
 
-#[derive(Serialize_repr, Deserialize_repr, PartialEq, Debug)]
-#[repr(u8)]
-enum ActionStates {
-    Undefined = 0,
-    Idle = 1,
-
-    Harvesting = 10,
-    Offloading = 11,
-}
 
 /// Define the standardised behaviours for a creep action.
 ///

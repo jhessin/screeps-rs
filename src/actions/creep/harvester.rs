@@ -7,12 +7,11 @@ use screeps::{
     Creep, LookResult, ResourceType, ReturnCode,
 };
 
-use crate::actions::creep::ActionStates;
 use crate::actions::CreepAction;
-use crate::types::GeneralError;
+use crate::types::{ActionStates, GeneralError};
 use log;
 
-pub struct Default;
+pub struct Harvester;
 
 struct TargetEnergySink {
     x: u32,
@@ -21,7 +20,7 @@ struct TargetEnergySink {
     // structure: Box<dyn HasStore>,
 }
 
-impl Default {
+impl Harvester {
     fn harvest_energy(creep: &Creep) -> bool {
         // TODO - Work to the nearest source, not just arbitrarily the first.
         let source = &creep.room().find(find::SOURCES)[0];
@@ -44,9 +43,9 @@ impl Default {
 
     fn offload_energy(creep: &Creep) -> bool {
         // Retrieve all the structures in the room.
-        let mut targets = Default::identify_targets(creep);
+        let mut targets = Harvester::identify_targets(creep);
 
-        Default::_organise_targets(&mut targets);
+        Harvester::_organise_targets(&mut targets);
 
         let target = match targets.get(0) {
             None => return false,
@@ -218,7 +217,7 @@ impl Default {
             match b_struct_ref {
                 Structure::Tower(struct_b) => match a_struct_ref {
                     Structure::Tower(struct_a) => {
-                        Default::_compare_structure_free_energy(struct_b, struct_a)
+                        Harvester::_compare_structure_free_energy(struct_b, struct_a)
                     }
 
                     // In this branch, the Tower is the most significant item, so anything that
@@ -227,7 +226,7 @@ impl Default {
                 },
                 Structure::Spawn(struct_b) => match a_struct_ref {
                     Structure::Spawn(struct_a) => {
-                        Default::_compare_structure_free_energy(struct_b, struct_a)
+                        Harvester::_compare_structure_free_energy(struct_b, struct_a)
                     }
 
                     // The tower is the only thing more important than the spawn
@@ -238,7 +237,7 @@ impl Default {
                 },
                 Structure::Extension(struct_b) => match a_struct_ref {
                     Structure::Extension(struct_a) => {
-                        Default::_compare_structure_free_energy(struct_b, struct_a)
+                        Harvester::_compare_structure_free_energy(struct_b, struct_a)
                     }
 
                     // The tower and the spawn are more important than the extension
@@ -249,7 +248,7 @@ impl Default {
                 },
                 Structure::Link(struct_b) => match a_struct_ref {
                     Structure::Link(struct_a) => {
-                        Default::_compare_structure_free_energy(struct_b, struct_a)
+                        Harvester::_compare_structure_free_energy(struct_b, struct_a)
                     }
 
                     // The tower, spawn and extension are more important than the link
@@ -262,7 +261,7 @@ impl Default {
                 },
                 Structure::Container(struct_b) => match a_struct_ref {
                     Structure::Container(struct_a) => {
-                        Default::_compare_structure_free_energy(struct_b, struct_a)
+                        Harvester::_compare_structure_free_energy(struct_b, struct_a)
                     }
 
                     // The tower, spawn, extension and link are more important than the container
@@ -276,7 +275,7 @@ impl Default {
                 },
                 Structure::Storage(struct_b) => match a_struct_ref {
                     Structure::Storage(struct_a) => {
-                        Default::_compare_structure_free_energy(struct_b, struct_a)
+                        Harvester::_compare_structure_free_energy(struct_b, struct_a)
                     }
 
                     // In this branch, the second item is a spawn, so anything other than the first
@@ -292,20 +291,34 @@ impl Default {
     }
 }
 
-impl CreepAction for Default {
+impl CreepAction for Harvester {
     fn tick(creep: Creep) -> Result<(), GeneralError> {
         if creep.spawning() {
             // Its impossible to do anything with creeps that are spawning.
+            log::debug!("Creep is spawning, skipping");
             return Ok(());
         }
 
         let creep_mem = creep.memory();
         let creep_state: ActionStates = match creep_mem.string("state") {
-            Ok(res) => match res {
-                Some(state) => serde_json::from_str(&state)?,
-                None => ActionStates::Undefined,
-            },
+            Ok(res) => {
+                log::debug!("Found Action {:?} for {}", res, creep.name());
+                match res {
+                    Some(state_str) => {
+                        log::debug!("State for {} is: {}", creep.name(), state_str);
+                        serde_json::from_str::<ActionStates>(&state_str)
+                            .unwrap_or(ActionStates::Undefined)
+                    }
+                    None => ActionStates::Undefined,
+                }
+            }
             Err(err) => {
+                log::debug!("Could not find a state on {}", creep.name());
+                log::warn!(
+                    "Encountered error when searching for {}'s state: {}",
+                    creep.name(),
+                    err
+                );
                 return Err(Box::new(err));
             }
         };
@@ -338,10 +351,10 @@ impl CreepAction for Default {
         // Act on Creeps state
         match creep_state {
             ActionStates::Harvesting => {
-                Default::harvest_energy(&creep);
+                Harvester::harvest_energy(&creep);
             }
             ActionStates::Offloading => {
-                Default::offload_energy(&creep);
+                Harvester::offload_energy(&creep);
             }
 
             // If the state isn't something we expect, do nothing.

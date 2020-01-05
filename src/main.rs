@@ -10,15 +10,14 @@ mod logging;
 mod rooms;
 mod types;
 
-use game::{game_loop};
-
+use game::game_loop;
 
 /// Bootstrap the game AI
 ///
 ///This is the entrypoint for the Screeps AI, it sets up the JS environment to load in and run
 ///the game environment from rust.
 fn main() {
-    logging::setup_logging(logging::Info);
+    logging::setup_logging(logging::Debug);
 
     js! {
         var game_loop = @{game_loop};
@@ -30,6 +29,9 @@ fn main() {
             } catch (error) {
                 // console_error function provided by 'screeps-game-api'
                 console_error("caught exception:", error);
+                console_error("error props:" + Object.getOwnPropertyNames(error));
+                console_error("error symbols:" + Object.getOwnPropertySymbols(error));
+                console_error("error descriptors:" + Object.getOwnPropertyDescriptor(error));
                 if (error.stack) {
                     console_error("stack trace:", error.stack);
                 }
@@ -41,5 +43,3 @@ fn main() {
         }
     }
 }
-
-

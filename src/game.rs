@@ -16,16 +16,9 @@ pub fn game_loop() {
         let room = spawn.room();
         log::debug!("Managing room {}", room.name());
 
-        let result = rooms::room_manager(room);
-
-        match result {
-            Ok(()) => {
-                log::info!("Finished managing rooms.");
-            }
-            Err(err) => {
-                log::error!("Encountered an error during this tick. {}", err);
-            }
-        }
+        log::debug!("Running room manager");
+        // Deliberately force the program to panic, if anything goes awry
+        rooms::room_manager(room).unwrap();
     }
 
     let time = screeps::game::time();

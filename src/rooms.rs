@@ -2,13 +2,13 @@
 use log;
 use screeps::{game, objects::Room, prelude::*, Creep, Part, ReturnCode};
 
-use crate::actions::creep::Default;
+use crate::actions::creep::Harvester;
 use crate::actions::CreepAction;
 use crate::types::GeneralError;
 
 pub fn room_manager(room: Room) -> Result<(), GeneralError> {
     log::debug!("Managing room: {}", room.name());
-    manage_spawn(&room)?;
+    // manage_spawn(&room)?;
     manage_creeps(&room)?;
 
     Ok(())
@@ -50,17 +50,17 @@ fn manage_spawn(room: &Room) -> Result<(), GeneralError> {
 
 fn manage_creeps(room: &Room) -> Result<(), GeneralError> {
     let room_name = room.name();
+    log::debug!("running creeps in {}", room_name);
     let creeps_in_room: Vec<Creep> = game::creeps::values()
         .into_iter()
         .filter(|creep| creep.room().name() == room_name)
         .collect();
 
-    log::debug!("running creeps");
     for creep in creeps_in_room {
         let name = creep.name();
         log::debug!("running creep {}", name);
 
-        Default::tick(creep)?;
+        Harvester::tick(creep)?;
     }
     Ok(())
 }
