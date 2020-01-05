@@ -9,6 +9,7 @@ mod game;
 mod logging;
 mod rooms;
 mod types;
+mod traits;
 
 use game::game_loop;
 

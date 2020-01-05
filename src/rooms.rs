@@ -6,6 +6,9 @@ use crate::actions::creep::Harvester;
 use crate::actions::CreepAction;
 use crate::types::GeneralError;
 
+// Pull this in to implement the Worker trait on Creeps.
+pub use crate::traits::Worker;
+
 pub fn room_manager(room: Room) -> Result<(), GeneralError> {
     log::debug!("Managing room: {}", room.name());
     // manage_spawn(&room)?;

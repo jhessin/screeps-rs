@@ -9,14 +9,13 @@ use crate::rooms;
 use crate::types::GeneralError;
 
 pub fn game_loop() {
-    log::debug!("loop starting! CPU: {}", screeps::game::cpu::get_used());
+    log::info!("loop starting! CPU: {}", screeps::game::cpu::get_used());
 
     log::debug!("Managing rooms.");
     for spawn in game::spawns::values() {
         let room = spawn.room();
         log::debug!("Managing room {}", room.name());
 
-        log::debug!("Running room manager");
         // Deliberately force the program to panic, if anything goes awry
         rooms::room_manager(room).unwrap();
     }

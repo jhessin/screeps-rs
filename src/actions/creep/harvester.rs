@@ -363,43 +363,6 @@ impl CreepAction for Harvester {
                 return Ok(());
             }
         };
-
-        // if creep_mem.bool("state") {
-        //     if creep.store_free_capacity(Some(ResourceType::Energy)) == 0 {
-        //         creep.memory().set("harvest", false);
-        //     }
-        // } else {
-        //     if creep.store_used_capacity(None) == 0 {
-        //         creep.memory().set("harvest", true);
-        //     } else {
-        //         creep.memory().set("harvest", false);
-        //     }
-        // }
-
-        // if creep.memory().bool("harvest") {
-        // let source = &creep.room().find(find::SOURCES)[0];
-        // let creep_pos = &creep.pos();
-
-        // if creep.pos().is_near_to(source) {
-        //     let r = creep.harvest(source);
-        //     if r != ReturnCode::Ok {
-        //         log::warn!("couldn't harvest: {:?}", r);
-        //     }
-        // } else {
-        //     creep.move_to(source);
-        // }
-        // } else {
-        // if let Some(c) = creep.room().controller() {
-        //     let r = creep.upgrade_controller(&c);
-        //     if r == ReturnCode::NotInRange {
-        //         creep.move_to(&c);
-        //     } else if r != ReturnCode::Ok {
-        //         log::warn!("couldn't upgrade: {:?}", r);
-        //     }
-        // } else {
-        //     log::warn!("creep room has no controller!");
-        // }
-        // }
         Ok(())
     }
 }
