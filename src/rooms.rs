@@ -1,16 +1,20 @@
 /// Bring Capabilities relating to rooms into a package.
 use log;
-use screeps::{ResourceType, find, game, objects::Room, prelude::*, Part, ReturnCode};
+use screeps::{game, objects::Room, prelude::*, Creep, Part, ReturnCode};
 
-pub fn room_manager(room: Room) -> Result<(), Box<dyn std::error::Error>> {
+use crate::actions::creep::Default;
+use crate::actions::CreepAction;
+use crate::types::GeneralError;
+
+pub fn room_manager(room: Room) -> Result<(), GeneralError> {
     log::debug!("Managing room: {}", room.name());
     manage_spawn(&room)?;
-    manage_creeps()?;
+    manage_creeps(&room)?;
 
     Ok(())
 }
 
-fn manage_spawn(room: &Room) -> Result<(), Box<dyn std::error::Error>> {
+fn manage_spawn(room: &Room) -> Result<(), GeneralError> {
     log::debug!("running spawns");
 
     for spawn in game::spawns::values() {
@@ -44,49 +48,19 @@ fn manage_spawn(room: &Room) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn manage_creeps() -> Result<(), Box<dyn std::error::Error>> {
+fn manage_creeps(room: &Room) -> Result<(), GeneralError> {
+    let room_name = room.name();
+    let creeps_in_room: Vec<Creep> = game::creeps::values()
+        .into_iter()
+        .filter(|creep| creep.room().name() == room_name)
+        .collect();
+
     log::debug!("running creeps");
-    for creep in screeps::game::creeps::values() {
+    for creep in creeps_in_room {
         let name = creep.name();
         log::debug!("running creep {}", name);
-        if creep.spawning() {
-            continue;
-        }
 
-        if creep.memory().bool("harvesting") {
-            if creep.store_free_capacity(Some(ResourceType::Energy)) == 0 {
-                creep.memory().set("harvesting", false);
-            }
-        } else {
-            if creep.store_used_capacity(None) == 0 {
-                creep.memory().set("harvesting", true);
-            }
-        }
-
-        if creep.memory().bool("harvesting") {
-            let source = &creep.room().find(find::SOURCES)[0];
-            if creep.pos().is_near_to(source) {
-                let r = creep.harvest(source);
-                if r != ReturnCode::Ok {
-                    log::warn!("couldn't harvest: {:?}", r);
-                }
-            } else {
-                creep.move_to(source);
-            }
-        } else {
-            if let Some(c) = creep.room().controller() {
-                let r = creep.upgrade_controller(&c);
-                if r == ReturnCode::NotInRange {
-                    creep.move_to(&c);
-                } else if r != ReturnCode::Ok {
-                    log::warn!("couldn't upgrade: {:?}", r);
-                }
-            } else {
-                log::warn!("creep room has no controller!");
-            }
-        }
+        Default::tick(creep)?;
     }
-
     Ok(())
 }
-

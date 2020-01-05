@@ -6,6 +6,7 @@ use log;
 use screeps::{game, RoomObjectProperties};
 
 use crate::rooms;
+use crate::types::GeneralError;
 
 pub fn game_loop() {
     log::debug!("loop starting! CPU: {}", screeps::game::cpu::get_used());
@@ -37,7 +38,7 @@ pub fn game_loop() {
     log::info!("done! cpu: {}", screeps::game::cpu::get_used());
 }
 
-pub fn cleanup_memory() -> Result<(), Box<dyn std::error::Error>> {
+pub fn cleanup_memory() -> Result<(), GeneralError> {
     let alive_creeps: HashSet<String> = screeps::game::creeps::keys().into_iter().collect();
 
     let screeps_memory = match screeps::memory::root().dict("creeps")? {
