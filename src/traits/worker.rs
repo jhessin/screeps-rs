@@ -14,7 +14,7 @@ impl Worker for Creep {
             log::debug!("Creep is spawning, skipping");
             return Ok(());
         }
-        let task: String = match self.memory().string("task") {
+        let _task: String = match self.memory().string("_task") {
             Ok(res) => match res {
                 Some(value) => value,
                 None => {

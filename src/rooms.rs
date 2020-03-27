@@ -1,17 +1,16 @@
 /// Bring Capabilities relating to rooms into a package.
 use log;
-use screeps::{game, objects::Room, prelude::*, Creep, Part, ReturnCode};
+use screeps::{Creep, game, objects::Room, Part, prelude::*, ReturnCode};
 
 use crate::actions::creep::Harvester;
 use crate::actions::CreepAction;
-use crate::types::GeneralError;
-
 // Pull this in to implement the Worker trait on Creeps.
 pub use crate::traits::Worker;
+use crate::types::GeneralError;
 
 pub fn room_manager(room: Room) -> Result<(), GeneralError> {
     log::debug!("Managing room: {}", room.name());
-    // manage_spawn(&room)?;
+    manage_spawn(&room)?;
     manage_creeps(&room)?;
 
     Ok(())
@@ -60,8 +59,8 @@ fn manage_creeps(room: &Room) -> Result<(), GeneralError> {
         .collect();
 
     for creep in creeps_in_room {
-        let name = creep.name();
-        log::debug!("running creep {}", name);
+        let _name = creep.name();
+        log::debug!("running creep {}", _name);
 
         Harvester::tick(creep)?;
     }
