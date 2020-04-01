@@ -1,7 +1,7 @@
 use crate::*;
 
 /// This cleans up any memory references that are no longer needed. creeps, etc.
-pub fn cleanup_memory() -> Result<(), Box<dyn std::error::Error>> {
+pub fn cleanup_memory() -> std::result::Result<(), Box<dyn std::error::Error>> {
   // Get all of the creeps that are still alive
   let alive_creeps: HashSet<String> =
     screeps::game::creeps::keys().into_iter().collect();
