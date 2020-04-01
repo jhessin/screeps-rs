@@ -4,8 +4,9 @@ use crate::*;
 /// This wraps a structure spawn and gives it superpowers!
 pub struct Spawner {
   /// the spawn that this is controlling
-  spawn: StructureSpawn,
-  room: Room,
+  pub spawn: StructureSpawn,
+  /// The room the spawn is in.
+  pub room: Room,
 }
 
 impl Display for Spawner {
@@ -20,6 +21,15 @@ impl Display for Spawner {
 }
 
 impl Spawner {
+  /// Get a new spawner
+  pub fn new(spawn: StructureSpawn) -> Self {
+    let room = spawn.room();
+    Spawner {
+      spawn,
+      room
+    }
+  }
+  
   /// Returns the cost of a creep
   pub fn body_cost(body: &[Part]) -> u32 {
     body.iter().map(|p| p.cost()).sum()
