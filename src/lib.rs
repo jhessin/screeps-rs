@@ -11,8 +11,18 @@ pub use std::str::FromStr;
 pub use log::*;
 /// The screeps imports
 pub use screeps::{
-  find, game, memory::MemoryReference, ObjectId, objects::*, Part, prelude::*,
-  RawObjectId, ResourceType, ReturnCode, RoomObjectProperties,
+  find, game, memory::MemoryReference, ObjectId, objects::*, Part, pathfinder::{
+    search, SearchOptions
+  },
+  Position, prelude::*, RawObjectId, ResourceType,
+  ReturnCode, RoomObjectProperties
+};
+pub use serde::{
+  Deserialize, Serialize
+};
+pub use serde_json::{
+  from_str,
+  to_string,
 };
 /// If we want to use js
 pub use stdweb::js;

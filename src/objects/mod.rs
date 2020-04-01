@@ -2,7 +2,9 @@
 //! front ends for everything.
 
 pub use role::*;
+pub use role_data::*;
 pub use spawner::*;
 
 mod role;
+mod role_data;
 mod spawner;
