@@ -1,6 +1,5 @@
-use stdweb::js;
-
 pub use log::LevelFilter::*;
+use stdweb::js;
 
 struct JsLog;
 struct JsNotify;
@@ -30,6 +29,7 @@ impl log::Log for JsNotify {
   fn flush(&self) {}
 }
 
+/// This sets up the logging level filter. Shouldn't need to mess with this.
 pub fn setup_logging(verbosity: log::LevelFilter) {
   fern::Dispatch::new()
     .level(verbosity)
