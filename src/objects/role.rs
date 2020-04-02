@@ -1,5 +1,4 @@
 //! The role is the role that a creep will take.
-//! TODO: Split this into Creeper, Path
 use crate::*;
 
 /// This is an enum that lists the different roles
@@ -124,7 +123,7 @@ impl Role {
   }
 }
 
-/// General helper methods and run()
+/// General helper methods
 impl Role {
   /// Returns the appropriate body for this role as well as if it should be expanded.
   pub fn body(&self) -> (Vec<Part>, bool) {
@@ -279,7 +278,7 @@ fn gather_energy(creep: &Creep) -> ReturnCode {
   let targets = creep.room().find(find::DROPPED_RESOURCES);
   let targets: Vec<&Resource> = targets.iter().collect();
   if !targets.is_empty() {
-    if let Some(target) = find_nearest(creep.pos(), targets) {
+    if let Some(target) = _find_nearest(creep.pos(), targets) {
       let code = pickup(creep, target);
       return handle_code(creep, code, target);
     }
@@ -294,7 +293,7 @@ fn gather_energy(creep: &Creep) -> ReturnCode {
     .collect();
   let targets: Vec<&Tombstone> = targets.iter().collect();
   if !targets.is_empty() {
-    if let Some(target) = find_nearest(creep.pos(), targets) {
+    if let Some(target) = _find_nearest(creep.pos(), targets) {
       let code = withdraw(creep, target);
       return handle_code(creep, code, target);
     }
@@ -309,7 +308,7 @@ fn gather_energy(creep: &Creep) -> ReturnCode {
     .collect();
   let targets: Vec<&Ruin> = targets.iter().collect();
   if !targets.is_empty() {
-    if let Some(target) = find_nearest(creep.pos(), targets) {
+    if let Some(target) = _find_nearest(creep.pos(), targets) {
       let code = withdraw(creep, target);
       return handle_code(creep, code, target);
     }
@@ -331,7 +330,7 @@ fn gather_energy(creep: &Creep) -> ReturnCode {
     .collect();
   let targets: Vec<&Structure> = targets.iter().collect();
   if !targets.is_empty() {
-    if let Some(target) = find_nearest(creep.pos(), targets) {
+    if let Some(target) = _find_nearest(creep.pos(), targets) {
       if let Some(target) = target.as_withdrawable() {
         let code = withdraw(creep, target);
         return handle_code(creep, code, target);
@@ -361,7 +360,7 @@ fn deliver_energy(creep: &Creep) -> ReturnCode {
     .collect();
   let targets: Vec<&StructureTower> = targets.iter().collect();
   if !targets.is_empty() {
-    if let Some(target) = find_nearest(creep.pos(), targets) {
+    if let Some(target) = _find_nearest(creep.pos(), targets) {
       let code = withdraw(creep, target);
       return handle_code(creep, code, target);
     }
@@ -390,7 +389,7 @@ fn deliver_energy(creep: &Creep) -> ReturnCode {
     .collect();
   let targets: Vec<&Structure> = targets.iter().collect();
   if !targets.is_empty() {
-    if let Some(target) = find_nearest(creep.pos(), targets) {
+    if let Some(target) = _find_nearest(creep.pos(), targets) {
       let code = withdraw(creep, target.as_withdrawable().unwrap());
       return handle_code(creep, code, target);
     }
@@ -411,7 +410,7 @@ fn deliver_energy(creep: &Creep) -> ReturnCode {
     .collect();
   let targets: Vec<&Structure> = targets.iter().collect();
   if !targets.is_empty() {
-    if let Some(target) = find_nearest(creep.pos(), targets) {
+    if let Some(target) = _find_nearest(creep.pos(), targets) {
       let code = withdraw(creep, target.as_withdrawable().unwrap());
       return handle_code(creep, code, target);
     }
@@ -508,26 +507,10 @@ fn upgrade_controller(creep: &Creep) -> ReturnCode {
 }
 
 /// This is a utility that helps me find the nearest object in any array of StructureProperties
-/// TODO Move to Path
-fn find_nearest<T>(pos: Position, targets: Vec<&T>) -> Option<&T>
+/// TODO Move to Finder trait on Vec<Target>
+fn _find_nearest<T>(_: Position, _: Vec<&T>) -> Option<&T>
 where
   T: RoomObjectProperties + ?Sized,
 {
-  use std::u32::MAX;
-
-  if targets.is_empty() {
-    return None;
-  }
-
-  let mut nearest = *targets.get(0).unwrap();
-  let mut nearest_cost = MAX;
-
-  for target in targets {
-    let result = search(&pos, target, MAX, SearchOptions::new());
-    if !result.incomplete && result.cost < nearest_cost {
-      nearest_cost = result.cost;
-      nearest = target;
-    }
-  }
-  Some(nearest)
+  unimplemented!()
 }

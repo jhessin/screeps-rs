@@ -52,9 +52,9 @@ impl Creeper {
   fn save(&mut self) -> std::result::Result<(), Box<dyn std::error::Error>> {
     // save data to appropriate roles
     self.role = match self.role.clone() {
-      Role::Miner(d) => Role::Miner(self.data.clone()),
-      Role::WallRepairer(d) => Role::WallRepairer(self.data.clone()),
-      Role::Specialist(d) => Role::Specialist(self.data.clone()),
+      Role::Miner(_) => Role::Miner(self.data.clone()),
+      Role::WallRepairer(_) => Role::WallRepairer(self.data.clone()),
+      Role::Specialist(_) => Role::Specialist(self.data.clone()),
       _ => self.role.clone(),
     };
     let role = to_string(&self.role)?;
