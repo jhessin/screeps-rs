@@ -1,4 +1,5 @@
 //! The role is the role that a creep will take.
+//! TODO: Split this into Creeper, Path, Roomie
 use crate::*;
 
 /// This is an enum that lists the different roles
@@ -60,6 +61,7 @@ impl Role {
   }
 
   /// Generate a role from a creeps memory
+  /// TODO - move this to Creeper::new(Creep)
   pub fn from_creep(creep: &Creep) -> Self {
     let default = Role::Upgrader;
     if let Ok(Some(role)) = creep.memory().string(KEY) {
@@ -93,6 +95,7 @@ impl Role {
   }
 
   /// Determines if a source has a miner attached to it.
+  /// TODO: Move this to another object
   pub fn has_miner(source: &Source) -> bool {
     for creep in game::creeps::values() {
       if let Role::Miner(data) = Self::from_creep(&creep) {
@@ -107,6 +110,7 @@ impl Role {
   }
 
   /// Is this creep working
+  /// TODO: Move this to Creeper
   pub fn is_working(creep: &Creep) -> bool {
     let working = creep.memory().bool("working");
 
@@ -122,6 +126,7 @@ impl Role {
   }
 
   /// Runs the creep role
+  /// TODO: Move this to Creeper
   pub fn run(&self, creep: &Creep) -> ReturnCode {
     let working = Self::is_working(&creep);
 
@@ -203,6 +208,7 @@ impl Role {
 /// Helper functions go here
 
 /// This function handles return codes from actions
+/// TODO Move to Creeper
 fn handle_code<T>(creep: &Creep, code: ReturnCode, target: &T) -> ReturnCode
 where T: RoomObjectProperties + ?Sized
 {
@@ -218,6 +224,7 @@ where T: RoomObjectProperties + ?Sized
 }
 
 /// This is for the HARVESTER ONLY - it gathers energy directly from the source.
+/// TODO Move to Creeper
 fn harvest_energy(creep: &Creep) -> ReturnCode {
   // FIND the source
   let source = js! {
@@ -236,6 +243,7 @@ fn harvest_energy(creep: &Creep) -> ReturnCode {
 
 /// This gathers any loose energy it can find
 /// Every creep will use this except miner, or specialist
+/// TODO Move to Creeper
 fn gather_energy(creep: &Creep) -> ReturnCode {
   // prioritize targets
   // pickup: from dropped resources first
@@ -300,6 +308,7 @@ fn gather_energy(creep: &Creep) -> ReturnCode {
 }
 
 /// This will deliver the energy to the needed spots
+/// TODO Move to Creeper
 fn deliver_energy(creep: &Creep) -> ReturnCode {
   // prioritize targets
   // towers
@@ -371,6 +380,7 @@ fn deliver_energy(creep: &Creep) -> ReturnCode {
 }
 
 /// This will find and repair the nearest damaged structure
+/// TODO Move to Creeper
 fn repair_nearest(creep: &Creep) -> ReturnCode {
   // find the nearest damaged structure
   // exclude walls
@@ -380,6 +390,7 @@ fn repair_nearest(creep: &Creep) -> ReturnCode {
 }
 
 /// This repairs the nearest wall using the assigned ratio
+/// TODO Move to Creeper
 fn repair_wall(creep: &Creep, ratio: f64) -> ReturnCode {
   // use a time cycle to check for new walls (reset the ratio)
   // otherwise just search for walls within the current ratio
@@ -390,6 +401,7 @@ fn repair_wall(creep: &Creep, ratio: f64) -> ReturnCode {
 }
 
 /// This builds the nearest construction site
+/// TODO Move to Creeper
 fn build_nearest(creep: &Creep) -> ReturnCode {
   // Just find the nearest construction site and call build() on it.
   // TODO
@@ -397,18 +409,21 @@ fn build_nearest(creep: &Creep) -> ReturnCode {
 }
 
 /// This picks up dropped resources
+/// TODO Move to Creeper
 fn pickup(creep: &Creep, resource: &Resource) -> ReturnCode {
   let code = creep.pickup(resource);
   handle_code(creep, code, resource)
 }
 
 /// This gathers the energy from a given source
+/// TODO Move to Creeper
 fn mine(creep: &Creep, source: &Source) -> ReturnCode {
   let code = creep.harvest(source);
   handle_code(creep, code, source)
 }
 
 /// This will withdraw energy from a specific source
+/// TODO Move to Creeper
 fn withdraw<T>(creep: &Creep, target: &T) -> ReturnCode
 where T: RoomObjectProperties + Withdrawable + ?Sized {
   let code = creep.withdraw_all(target, ResourceType::Energy);
@@ -416,6 +431,7 @@ where T: RoomObjectProperties + Withdrawable + ?Sized {
 }
 
 /// This will transfer energy to a target structure
+/// TODO Move to Creeper
 fn transfer<T>(creep: &Creep, target: &T) -> ReturnCode
 where T: RoomObjectProperties + Transferable + ?Sized{
   let code = creep.transfer_all(target, ResourceType::Energy);
@@ -423,6 +439,7 @@ where T: RoomObjectProperties + Transferable + ?Sized{
 }
 
 /// This will repair a target structure
+/// TODO Move to Creeper
 fn repair<T>(creep: &Creep, target: &T) -> ReturnCode
 where T: StructureProperties {
   let code = creep.repair(target);
@@ -430,12 +447,14 @@ where T: StructureProperties {
 }
 
 /// This will build a construction site
+/// TODO Move to Creeper
 fn build(creep: &Creep, target: &ConstructionSite) -> ReturnCode {
   let code = creep.build(target);
   handle_code(creep, code, target)
 }
 
 /// This will upgrade the controller
+/// TODO Move to Creeper
 fn upgrade_controller(creep: &Creep) -> ReturnCode {
   let controller = creep.room().controller().unwrap();
   let code = creep.upgrade_controller(&controller);
@@ -443,12 +462,14 @@ fn upgrade_controller(creep: &Creep) -> ReturnCode {
 }
 
 /// This is a utility that helps me find the nearest object in any array of StructureProperties
+/// TODO Move to Path
 fn find_nearest<T>(pos: Position, targets: Vec<&T>) -> Option<&T>
-where T: RoomObjectProperties + ?Sized{
+where T: RoomObjectProperties + ?Sized {
+  use std::u32::MAX;
+
   if targets.is_empty() {
     return None;
   }
-  use std::u32::MAX;
 
   let mut nearest = *targets.get(0).unwrap();
   let mut nearest_cost = MAX;
