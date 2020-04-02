@@ -1,9 +1,9 @@
 //! The role is the role that a creep will take.
-//! TODO: Split this into Creeper, Path, Roomie
+//! TODO: Split this into Creeper, Path
 use crate::*;
 
 /// This is an enum that lists the different roles
-#[derive(Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub enum Role {
   /// Harvest energy and place it into Extensions, Spawns, Towers, Storage
   /// fallback: -> Upgrader
@@ -28,6 +28,69 @@ pub enum Role {
   /// Ferries resources between two specific locations.
   /// fallback: -> Repair -> Upgrader
   Specialist(RoleData),
+}
+
+impl PartialEq for Role {
+  fn eq(&self, other: &Self) -> bool {
+    match self {
+      Role::Harvester => {
+        if let Role::Harvester = other {
+          true
+        } else {
+          false
+        }
+      }
+      Role::Miner(_) => {
+        if let Role::Miner(_) = other {
+          true
+        } else {
+          false
+        }
+      }
+      Role::Upgrader => {
+        if let Role::Upgrader = other {
+          true
+        } else {
+          false
+        }
+      }
+      Role::Builder => {
+        if let Role::Builder = other {
+          true
+        } else {
+          false
+        }
+      }
+      Role::Repairer => {
+        if let Role::Repairer = other {
+          true
+        } else {
+          false
+        }
+      }
+      Role::WallRepairer(_) => {
+        if let Role::WallRepairer(_) = other {
+          true
+        } else {
+          false
+        }
+      }
+      Role::Lorry => {
+        if let Role::Lorry = other {
+          true
+        } else {
+          false
+        }
+      }
+      Role::Specialist(_) => {
+        if let Role::Specialist(_) = other {
+          true
+        } else {
+          false
+        }
+      }
+    }
+  }
 }
 
 /// This gives me to_string functionality for serialization
@@ -59,26 +122,10 @@ impl Role {
     }
     mem
   }
-
-  /// Generate a role from a creeps memory
-  /// TODO - move this to Creeper::new(Creep)
-  pub fn from_creep(creep: &Creep) -> Self {
-    let default = Role::Upgrader;
-    if let Ok(Some(role)) = creep.memory().string(KEY) {
-      if let Ok(role) = from_str::<Role>(&role) {
-        return role;
-      }
-    }
-
-    warn!("creep: {} has invalid role - assigning upgrader", creep.name());
-    creep.memory().set(KEY, to_string(&default).unwrap());
-    default
-  }
 }
 
 /// General helper methods and run()
 impl Role {
-
   /// Returns the appropriate body for this role as well as if it should be expanded.
   pub fn body(&self) -> (Vec<Part>, bool) {
     use Part::*;
@@ -90,7 +137,7 @@ impl Role {
       Role::Repairer => (vec![Work, Carry, Move, Move], true),
       Role::WallRepairer(_) => (vec![Work, Carry, Move, Move], true),
       Role::Lorry => (vec![Carry, Carry, Move, Move], true),
-      Role::Specialist (_) => (vec![Carry, Carry, Move, Move], true),
+      Role::Specialist(_) => (vec![Carry, Carry, Move, Move], true),
     }
   }
 
@@ -98,111 +145,92 @@ impl Role {
   /// TODO: Move this to another object
   pub fn has_miner(source: &Source) -> bool {
     for creep in game::creeps::values() {
-      if let Role::Miner(data) = Self::from_creep(&creep) {
-        if let Some(miner_source) = data.source() {
-          if miner_source == *source {
-            return true
-          }
-        }
+      let creep = Creeper::new(creep);
+      if creep.role == Role::Miner(RoleData::default()) {
+        return true;
       }
     }
     false
   }
 
-  /// Is this creep working
-  /// TODO: Move this to Creeper
-  pub fn is_working(creep: &Creep) -> bool {
-    let working = creep.memory().bool("working");
-
-    if working && creep.store_used_capacity(Some(ResourceType::Energy)) == 0 {
-      creep.memory().set("working", false);
-      false
-    } else if !working && creep.store_free_capacity(Some(ResourceType::Energy)) == 0 {
-      creep.memory().set("working", true);
-      true
-    } else {
-      working
-    }
-  }
-
-  /// Runs the creep role
-  /// TODO: Move this to Creeper
-  pub fn run(&self, creep: &Creep) -> ReturnCode {
-    let working = Self::is_working(&creep);
-
-    match self {
-      Role::Harvester => {
-        if working {
-          deliver_energy(creep)
-        } else {
-          harvest_energy(creep)
-        }
-      },
-      Role::Miner(data) => {
-        if let Some(source) = data.source() {
-          mine(creep, &source)
-        } else {
-          ReturnCode::NotFound
-        }
-      },
-      Role::Upgrader => {
-        if working {
-          upgrade_controller(creep)
-        } else {
-          gather_energy(creep)
-        }
-      },
-      Role::Builder => {
-        if working {
-          build_nearest(creep)
-        } else {
-          gather_energy(creep)
-        }
-      },
-      Role::Repairer => {
-        if working {
-          repair_nearest(creep)
-        } else {
-          gather_energy(creep)
-        }
-      },
-      Role::WallRepairer(data) => {
-        let ratio = if let Some(ratio) = data.ratio {
-          ratio
-        } else {
-          // default minimum ratio
-          0.0001
-        };
-        if working {
-          repair_wall(creep, ratio)
-        } else {
-          gather_energy(creep)
-        }
-      },
-      Role::Lorry => {
-        if working {
-          deliver_energy(creep)
-        } else {
-          gather_energy(creep)
-        }
-      },
-      Role::Specialist (data) => {
-        let from = if let Some(from) = data.source_structure() {
-          from
-        } else {
-          panic!("Specialist: {} has no source structure to harvest from", creep.name())
-        };
-        let to = if let Some(target) = data.target() { target } else {
-          panic!("Specialist: {} has no destination structure", creep.name())
-        };
-        if working {
-          withdraw(creep, from.as_withdrawable().unwrap())
-        } else {
-          transfer(creep, to.as_transferable().unwrap())
-        }
-      },
-    }
-  }
+  // Runs the creep role
+  // TODO: Move this to Creeper
+  // pub fn run(&self, creep: &Creep) -> ReturnCode {
+  //   let working = Self::is_working(&creep);
+  //
+  //   match self {
+  //     Role::Harvester => {
+  //       if working {
+  //         deliver_energy(creep)
+  //       } else {
+  //         harvest_energy(creep)
+  //       }
+  //     },
+  //     Role::Miner(data) => {
+  //       if let Some(source) = data.source() {
+  //         mine(creep, &source)
+  //       } else {
+  //         ReturnCode::NotFound
+  //       }
+  //     },
+  //     Role::Upgrader => {
+  //       if working {
+  //         upgrade_controller(creep)
+  //       } else {
+  //         gather_energy(creep)
+  //       }
+  //     },
+  //     Role::Builder => {
+  //       if working {
+  //         build_nearest(creep)
+  //       } else {
+  //         gather_energy(creep)
+  //       }
+  //     },
+  //     Role::Repairer => {
+  //       if working {
+  //         repair_nearest(creep)
+  //       } else {
+  //         gather_energy(creep)
+  //       }
+  //     },
+  //     Role::WallRepairer(data) => {
+  //       let ratio = if let Some(ratio) = data.ratio {
+  //         ratio
+  //       } else {
+  //         // default minimum ratio
+  //         0.0001
+  //       };
+  //       if working {
+  //         repair_wall(creep, ratio)
+  //       } else {
+  //         gather_energy(creep)
+  //       }
+  //     },
+  //     Role::Lorry => {
+  //       if working {
+  //         deliver_energy(creep)
+  //       } else {
+  //         gather_energy(creep)
+  //       }
+  //     },
+  //     Role::Specialist (data) => {
+  //       let from = if let Some(from) = data.source_structure() {
+  //         from
+  //       } else {
+  //         panic!("Specialist: {} has no source structure to harvest from", creep.name())
+  //       };
+  //       let to = if let Some(target) = data.target() { target } else {
+  //         panic!("Specialist: {} has no destination structure", creep.name())
+  //       };
+  //       if working {
+  //         withdraw(creep, from.as_withdrawable().unwrap())
+  //       } else {
+  //         transfer(creep, to.as_transferable().unwrap())
+  //       }
+  //     },
+  //   }
+  // }
 }
 
 /// Helper functions go here
@@ -210,7 +238,8 @@ impl Role {
 /// This function handles return codes from actions
 /// TODO Move to Creeper
 fn handle_code<T>(creep: &Creep, code: ReturnCode, target: &T) -> ReturnCode
-where T: RoomObjectProperties + ?Sized
+where
+  T: RoomObjectProperties + ?Sized,
 {
   if code == ReturnCode::NotInRange {
     creep.move_to(target);
@@ -231,7 +260,7 @@ fn harvest_energy(creep: &Creep) -> ReturnCode {
   let creep = @{creep};
   creep.findNearestByPath(FIND_SOURCES)
   };
-  if let Some(source)= source.into_reference() {
+  if let Some(source) = source.into_reference() {
     if let Some(source) = source.downcast::<Source>() {
       // call mine on the source
       info!("Successfully harvesting from nearest source!");
@@ -248,8 +277,7 @@ fn gather_energy(creep: &Creep) -> ReturnCode {
   // prioritize targets
   // pickup: from dropped resources first
   let targets = creep.room().find(find::DROPPED_RESOURCES);
-  let targets: Vec<&Resource> =
-    targets.iter().collect();
+  let targets: Vec<&Resource> = targets.iter().collect();
   if !targets.is_empty() {
     if let Some(target) = find_nearest(creep.pos(), targets) {
       let code = pickup(creep, target);
@@ -257,11 +285,12 @@ fn gather_energy(creep: &Creep) -> ReturnCode {
     }
   }
   // withdraw: from tombstones (check store)
-  let targets: Vec<Tombstone> =
-    creep.room().find(find::TOMBSTONES).into_iter().filter(
-    |t| {
-    t.store_used_capacity(Some(ResourceType::Energy)) > 0
-  }).collect();
+  let targets: Vec<Tombstone> = creep
+    .room()
+    .find(find::TOMBSTONES)
+    .into_iter()
+    .filter(|t| t.store_used_capacity(Some(ResourceType::Energy)) > 0)
+    .collect();
   let targets: Vec<&Tombstone> = targets.iter().collect();
   if !targets.is_empty() {
     if let Some(target) = find_nearest(creep.pos(), targets) {
@@ -270,12 +299,12 @@ fn gather_energy(creep: &Creep) -> ReturnCode {
     }
   }
   // withdraw: from ruins (check store)
-  let targets: Vec<Ruin> =
-    creep.room().find(find::RUINS).into_iter().filter(
-      |r| {
-        r.store_used_capacity(Some(ResourceType::Energy)) > 0
-      }
-    ).collect();
+  let targets: Vec<Ruin> = creep
+    .room()
+    .find(find::RUINS)
+    .into_iter()
+    .filter(|r| r.store_used_capacity(Some(ResourceType::Energy)) > 0)
+    .collect();
   let targets: Vec<&Ruin> = targets.iter().collect();
   if !targets.is_empty() {
     if let Some(target) = find_nearest(creep.pos(), targets) {
@@ -284,23 +313,25 @@ fn gather_energy(creep: &Creep) -> ReturnCode {
     }
   }
   // withdraw: from containers, links, storage (whatever is closer)
-  let targets: Vec<Structure> =
-    creep.room().find(find::STRUCTURES).into_iter().filter(
-      |s| {
-        if let Some(store) = s.as_has_store() {
-          if store.store_used_capacity(Some(ResourceType::Energy)) > 0 {
-            return true;
-          }
+  let targets: Vec<Structure> = creep
+    .room()
+    .find(find::STRUCTURES)
+    .into_iter()
+    .filter(|s| {
+      if let Some(store) = s.as_has_store() {
+        if store.store_used_capacity(Some(ResourceType::Energy)) > 0 {
+          return true;
         }
-        false
       }
-    ).collect();
+      false
+    })
+    .collect();
   let targets: Vec<&Structure> = targets.iter().collect();
   if !targets.is_empty() {
-      if let Some(target) = find_nearest(creep.pos(), targets) {
-        if let Some(target) = target.as_withdrawable() {
-          let code = withdraw(creep, target);
-          return handle_code(creep, code, target);
+    if let Some(target) = find_nearest(creep.pos(), targets) {
+      if let Some(target) = target.as_withdrawable() {
+        let code = withdraw(creep, target);
+        return handle_code(creep, code, target);
       }
     }
   }
@@ -312,17 +343,19 @@ fn gather_energy(creep: &Creep) -> ReturnCode {
 fn deliver_energy(creep: &Creep) -> ReturnCode {
   // prioritize targets
   // towers
-  let targets: Vec<StructureTower> =
-    creep.room().find(find::STRUCTURES).into_iter().filter_map(
-      |s| {
-        if let Structure::Tower(t) = s {
-          if t.store_free_capacity(Some(ResourceType::Energy)) > 0 {
-            return Some(t)
-          }
+  let targets: Vec<StructureTower> = creep
+    .room()
+    .find(find::STRUCTURES)
+    .into_iter()
+    .filter_map(|s| {
+      if let Structure::Tower(t) = s {
+        if t.store_free_capacity(Some(ResourceType::Energy)) > 0 {
+          return Some(t);
         }
-        None
       }
-    ).collect();
+      None
+    })
+    .collect();
   let targets: Vec<&StructureTower> = targets.iter().collect();
   if !targets.is_empty() {
     if let Some(target) = find_nearest(creep.pos(), targets) {
@@ -331,25 +364,27 @@ fn deliver_energy(creep: &Creep) -> ReturnCode {
     }
   }
   // extensions, spawn
-  let targets: Vec<Structure> =
-    creep.room().find(find::STRUCTURES).into_iter().filter(
-      |s| {
-        match s {
-          Structure::Extension(s) => {
-            if s.store_free_capacity(Some(ResourceType::Energy)) > 0 {
-              return true
-            }
+  let targets: Vec<Structure> = creep
+    .room()
+    .find(find::STRUCTURES)
+    .into_iter()
+    .filter(|s| {
+      match s {
+        Structure::Extension(s) => {
+          if s.store_free_capacity(Some(ResourceType::Energy)) > 0 {
+            return true;
           }
-          Structure::Spawn(s) => {
-            if s.store_free_capacity(Some(ResourceType::Energy)) > 0 {
-              return true
-            }
-          }
-          _ => {}
         }
-        false
+        Structure::Spawn(s) => {
+          if s.store_free_capacity(Some(ResourceType::Energy)) > 0 {
+            return true;
+          }
+        }
+        _ => {}
       }
-    ).collect();
+      false
+    })
+    .collect();
   let targets: Vec<&Structure> = targets.iter().collect();
   if !targets.is_empty() {
     if let Some(target) = find_nearest(creep.pos(), targets) {
@@ -358,17 +393,19 @@ fn deliver_energy(creep: &Creep) -> ReturnCode {
     }
   }
   // links, storage, etc. everything else
-  let targets: Vec<Structure> =
-    creep.room().find(find::STRUCTURES).into_iter().filter(
-      |s| {
-        if let Some(s) = s.as_has_store() {
-          if s.store_free_capacity(Some(ResourceType::Energy)) > 0 {
-            return true
-          }
+  let targets: Vec<Structure> = creep
+    .room()
+    .find(find::STRUCTURES)
+    .into_iter()
+    .filter(|s| {
+      if let Some(s) = s.as_has_store() {
+        if s.store_free_capacity(Some(ResourceType::Energy)) > 0 {
+          return true;
         }
-        false
       }
-    ).collect();
+      false
+    })
+    .collect();
   let targets: Vec<&Structure> = targets.iter().collect();
   if !targets.is_empty() {
     if let Some(target) = find_nearest(creep.pos(), targets) {
@@ -425,7 +462,9 @@ fn mine(creep: &Creep, source: &Source) -> ReturnCode {
 /// This will withdraw energy from a specific source
 /// TODO Move to Creeper
 fn withdraw<T>(creep: &Creep, target: &T) -> ReturnCode
-where T: RoomObjectProperties + Withdrawable + ?Sized {
+where
+  T: RoomObjectProperties + Withdrawable + ?Sized,
+{
   let code = creep.withdraw_all(target, ResourceType::Energy);
   handle_code(creep, code, target)
 }
@@ -433,7 +472,9 @@ where T: RoomObjectProperties + Withdrawable + ?Sized {
 /// This will transfer energy to a target structure
 /// TODO Move to Creeper
 fn transfer<T>(creep: &Creep, target: &T) -> ReturnCode
-where T: RoomObjectProperties + Transferable + ?Sized{
+where
+  T: RoomObjectProperties + Transferable + ?Sized,
+{
   let code = creep.transfer_all(target, ResourceType::Energy);
   handle_code(creep, code, target)
 }
@@ -441,7 +482,9 @@ where T: RoomObjectProperties + Transferable + ?Sized{
 /// This will repair a target structure
 /// TODO Move to Creeper
 fn repair<T>(creep: &Creep, target: &T) -> ReturnCode
-where T: StructureProperties {
+where
+  T: StructureProperties,
+{
   let code = creep.repair(target);
   handle_code(creep, code, target)
 }
@@ -464,7 +507,9 @@ fn upgrade_controller(creep: &Creep) -> ReturnCode {
 /// This is a utility that helps me find the nearest object in any array of StructureProperties
 /// TODO Move to Path
 fn find_nearest<T>(pos: Position, targets: Vec<&T>) -> Option<&T>
-where T: RoomObjectProperties + ?Sized {
+where
+  T: RoomObjectProperties + ?Sized,
+{
   use std::u32::MAX;
 
   if targets.is_empty() {

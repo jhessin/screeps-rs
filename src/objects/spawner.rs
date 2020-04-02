@@ -24,12 +24,9 @@ impl Spawner {
   /// Get a new spawner
   pub fn new(spawn: StructureSpawn) -> Self {
     let room = spawn.room();
-    Spawner {
-      spawn,
-      room
-    }
+    Spawner { spawn, room }
   }
-  
+
   /// Returns the cost of a creep
   pub fn body_cost(body: &[Part]) -> u32 {
     body.iter().map(|p| p.cost()).sum()
