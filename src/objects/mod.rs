@@ -6,9 +6,11 @@ pub use finder::*;
 pub use role::*;
 pub use role_data::*;
 pub use spawner::*;
+pub use target::*;
 
 mod creeper;
 mod finder;
 mod role;
 mod role_data;
 mod spawner;
+mod target;

@@ -160,12 +160,16 @@ impl Creeper {
 
   /// A utility to handle traveling to a resource/target
   fn handle_code(&self, code: ReturnCode, msg: &'static str) -> ReturnCode {
-    let target = if let Some(t) = self.data.target() {
-      t
-    } else {
-      error!("Target not saved to creeper data");
-      return ReturnCode::NotFound;
+    let target = match self.data.target() {
+      Some(Target::Resource(target)) => target.pos(),
+      Some(Target::Source(target)) => target.pos(),
+      Some(Target::Ruin(target)) => target.pos(),
+      Some(Target::Structure(target)) => target.pos(),
+      Some(Target::Tombstone(target)) => target.pos(),
+      Some(Target::Creep(target)) => target.pos(),
+      None => return ReturnCode::NotFound,
     };
+
     if code == ReturnCode::NotInRange {
       self.creep.move_to(&target);
       code
@@ -185,7 +189,7 @@ impl Creeper {
   /// This is for the HARVESTER ONLY - it gathers energy directly from the source.
   pub fn harvest_energy(&mut self) -> ReturnCode {
     // find the nearest source if there isn't one already
-    let source = if let Some(s) = self.data.source() {
+    if let Some(Target::Source(s)) = self.data.source() {
       s
     } else {
       let source = js! {
@@ -195,7 +199,7 @@ impl Creeper {
       if let Some(source) = source.into_reference() {
         if let Some(source) = source.downcast::<Source>() {
           info!("Successfully harvesting from nearest source!");
-          self.data.set_source(&source);
+          self.data.set_source(Target::Source(source.clone()));
           source
         } else {
           return ReturnCode::NotFound;
@@ -219,7 +223,7 @@ impl Creeper {
       if let Some(target) =
         path.find_nearest_of::<Resource>(targets.iter().collect())
       {
-        self.data.set_target_resource(target);
+        self.data.set_target(Target::Resource(target.clone()));
         return self.handle_code(self.pickup(), "Picking up resource");
       }
     }
@@ -232,7 +236,7 @@ impl Creeper {
       .collect();
     if !targets.is_empty() {
       if let Some(target) = path.find_nearest_of(targets) {
-        self.data.set_source_tombstone(target);
+        self.data.set_source(Target::Tombstone(target.clone()));
         return self.handle_code(self.withdraw(), "Drawing from Tombstone");
       }
     }
@@ -245,7 +249,7 @@ impl Creeper {
       .collect();
     if !targets.is_empty() {
       if let Some(target) = path.find_nearest_of(targets) {
-        self.data.set_source_ruin(target);
+        self.data.set_source(Target::Ruin(target.clone()));
         return self.handle_code(self.withdraw(), "Withdrawing from Ruin");
       }
     }
