@@ -284,6 +284,7 @@ fn gather_energy(creep: &Creep) -> ReturnCode {
       return handle_code(creep, code, target);
     }
   }
+
   // withdraw: from tombstones (check store)
   let targets: Vec<Tombstone> = creep
     .room()
@@ -298,6 +299,7 @@ fn gather_energy(creep: &Creep) -> ReturnCode {
       return handle_code(creep, code, target);
     }
   }
+
   // withdraw: from ruins (check store)
   let targets: Vec<Ruin> = creep
     .room()
@@ -312,6 +314,7 @@ fn gather_energy(creep: &Creep) -> ReturnCode {
       return handle_code(creep, code, target);
     }
   }
+
   // withdraw: from containers, links, storage (whatever is closer)
   let targets: Vec<Structure> = creep
     .room()

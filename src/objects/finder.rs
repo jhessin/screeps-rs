@@ -5,19 +5,19 @@ use std::u32::MAX;
 use crate::*;
 
 /// Easy path management
-pub struct Path {
+pub struct Finder {
   /// The origin for navigation
   origin: Position,
 }
 
-impl Path {
+impl Finder {
   /// Returns a new path given anything that has a position
   pub fn new<T>(pos: T) -> Self
   where
     T: HasPosition,
   {
     let origin = pos.pos();
-    Path { origin }
+    Finder { origin }
   }
 
   /// Returns the nearest from a provided array.

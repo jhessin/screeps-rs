@@ -1,6 +1,4 @@
 //! Wraps up a Creep and gives it superpowers!
-use std::error::Error;
-
 use crate::*;
 
 const ROLE_KEY: &str = "role";
@@ -19,6 +17,7 @@ pub struct Creeper {
 impl Creeper {
   /// Creates a new creeper given a creep.
   pub fn new(creep: Creep) -> Self {
+    // Get the role
     let role = if let Ok(Some(role)) = creep.memory().string(ROLE_KEY) {
       if let Ok(role) = from_str::<Role>(&role) {
         role
@@ -28,27 +27,36 @@ impl Creeper {
     } else {
       Role::Upgrader
     };
-    let data = match &role {
+
+    // Get the data if possible
+    let unwrap_role = || match &role {
       Role::Miner(d) => d.clone(),
       Role::WallRepairer(d) => d.clone(),
       Role::Specialist(d) => d.clone(),
-      _ => {
-        if let Ok(Some(d)) = creep.memory().string(DATA_KEY) {
-          if let Ok(d) = from_str::<RoleData>(&d) {
-            d
-          } else {
-            RoleData::default()
-          }
-        } else {
-          RoleData::default()
-        }
+      _ => RoleData::default(),
+    };
+
+    let data = if let Ok(Some(d)) = creep.memory().string(DATA_KEY) {
+      if let Ok(d) = from_str::<RoleData>(&d) {
+        d
+      } else {
+        unwrap_role()
       }
+    } else {
+      unwrap_role()
     };
     Creeper { creep, role, data }
   }
 
   /// saves the updated creep data to memory
-  fn save(&self) -> std::result::Result<(), Box<dyn std::error::Error>> {
+  fn save(&mut self) -> std::result::Result<(), Box<dyn std::error::Error>> {
+    // save data to appropriate roles
+    self.role = match self.role.clone() {
+      Role::Miner(d) => Role::Miner(self.data.clone()),
+      Role::WallRepairer(d) => Role::WallRepairer(self.data.clone()),
+      Role::Specialist(d) => Role::Specialist(self.data.clone()),
+      _ => self.role.clone(),
+    };
     let role = to_string(&self.role)?;
     let data = to_string(&self.data)?;
     self.creep.memory().set(ROLE_KEY, role);
@@ -78,7 +86,7 @@ impl Creeper {
   }
 
   /// Runs the creep role
-  pub fn run(&self) -> ReturnCode {
+  pub fn run(&mut self) -> ReturnCode {
     let working = self.is_working();
 
     let code = match self.role {
@@ -151,10 +159,7 @@ impl Creeper {
   }
 
   /// A utility to handle traveling to a resource/target
-  fn handle_code<T>(&self, code: ReturnCode, msg: &'static str) -> ReturnCode
-  where
-    T: RoomObjectProperties + ?Sized,
-  {
+  fn handle_code(&self, code: ReturnCode, msg: &'static str) -> ReturnCode {
     let target = if let Some(t) = self.data.target() {
       t
     } else {
@@ -178,15 +183,74 @@ impl Creeper {
   }
 
   /// This is for the HARVESTER ONLY - it gathers energy directly from the source.
-  pub fn harvest_energy(&self) -> ReturnCode {
-    // TODO
-    unimplemented!()
+  pub fn harvest_energy(&mut self) -> ReturnCode {
+    // find the nearest source if there isn't one already
+    let source = if let Some(s) = self.data.source() {
+      s
+    } else {
+      let source = js! {
+        let creep = @{self.creep.clone()};
+        creep.findNearestByPath(FIND_SOURCES)
+      };
+      if let Some(source) = source.into_reference() {
+        if let Some(source) = source.downcast::<Source>() {
+          info!("Successfully harvesting from nearest source!");
+          self.data.set_source(&source);
+          source
+        } else {
+          return ReturnCode::NotFound;
+        }
+      } else {
+        return ReturnCode::NotFound;
+      }
+    };
+    // call mine on the source
+    self.mine()
   }
 
   /// This gathers any loose energy it can find
   /// Every creep will use this except miner, or specialist
-  pub fn gather_energy(&self) -> ReturnCode {
+  pub fn gather_energy(&mut self) -> ReturnCode {
+    // prioritize targets
+    // Dropped Resources first
+    let path = Finder::new(self.creep.clone());
+    let targets = self.creep.room().find(find::DROPPED_RESOURCES);
+    if !targets.is_empty() {
+      if let Some(target) =
+        path.find_nearest_of::<Resource>(targets.iter().collect())
+      {
+        self.data.set_target_resource(target);
+        return self.handle_code(self.pickup(), "Picking up resource");
+      }
+    }
+
+    // Tombstones next
+    let targets = self.creep.room().find(find::TOMBSTONES);
+    let targets: Vec<&Tombstone> = targets
+      .iter()
+      .filter(|t| t.store_used_capacity(Some(ResourceType::Energy)) > 0)
+      .collect();
+    if !targets.is_empty() {
+      if let Some(target) = path.find_nearest_of(targets) {
+        self.data.set_source_tombstone(target);
+        return self.handle_code(self.withdraw(), "Drawing from Tombstone");
+      }
+    }
+
+    // RUINS
+    let targets = self.creep.room().find(find::RUINS);
+    let targets: Vec<&Ruin> = targets
+      .iter()
+      .filter(|r| r.store_used_capacity(Some(ResourceType::Energy)) > 0)
+      .collect();
+    if !targets.is_empty() {
+      if let Some(target) = path.find_nearest_of(targets) {
+        self.data.set_source_ruin(target);
+        return self.handle_code(self.withdraw(), "Withdrawing from Ruin");
+      }
+    }
     // TODO
+    // Everything else
     unimplemented!()
   }
 

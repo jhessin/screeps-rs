@@ -2,13 +2,13 @@
 //! front ends for everything.
 
 pub use creeper::*;
-pub use path::*;
+pub use finder::*;
 pub use role::*;
 pub use role_data::*;
 pub use spawner::*;
 
 mod creeper;
-mod path;
+mod finder;
 mod role;
 mod role_data;
 mod spawner;
