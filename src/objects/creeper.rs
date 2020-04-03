@@ -238,15 +238,94 @@ impl Creeper {
         return self.handle_code(self.withdraw(), "Withdrawing from Ruin");
       }
     }
-    // TODO
+
     // Everything else
-    unimplemented!()
+    let targets = self.creep.room().find(find::STRUCTURES);
+    let targets: Vec<&Structure> = targets
+      .iter()
+      .filter(|s| {
+        if let Some(s) = s.as_has_store() {
+          if s.store_used_capacity(Some(ResourceType::Energy)) > 0 {
+            return true;
+          }
+        }
+        false
+      })
+      .collect();
+    if !targets.is_empty() {
+      if let Some(target) = path.find_nearest_of(targets) {
+        self.data().set_source(Target::Structure(target.clone()));
+        return self.handle_code(self.withdraw(), "Withdrawing from structure");
+      }
+    }
+
+    ReturnCode::NotFound
   }
 
   /// This will deliver the energy to the needed spots
-  pub fn deliver_energy(&self) -> ReturnCode {
-    // TODO
-    unimplemented!()
+  pub fn deliver_energy(&mut self) -> ReturnCode {
+    // prioritize targets
+    let path = Finder::new(self.creep.clone());
+    // towers
+    let targets = self.creep.room().find(find::STRUCTURES);
+    let targets: Vec<&StructureTower> = targets
+      .iter()
+      .filter_map(|s| {
+        if let Structure::Tower(t) = s {
+          if t.store_free_capacity(Some(ResourceType::Energy)) > 0 {
+            return Some(t);
+          }
+        }
+        None
+      }).collect();
+    if !targets.is_empty() {
+      if let Some(target) = path.find_nearest_of(targets) {
+        self.data().set_target(Target::Structure(Structure::Tower(target.clone())));
+        return self.handle_code(self.transfer(), "Transfering to tower");
+      }
+    }
+
+    // extensions, spawns
+    let targets = self.creep.room().find(find::STRUCTURES);
+    let targets: Vec<&Structure> = targets
+      .iter()
+      .filter(|s| {
+        match s {
+          Structure::Extension(s) =>
+            s.store_free_capacity(
+              Some(ResourceType::Energy)) > 0,
+          Structure::Spawn(s) =>
+            s.store_free_capacity(
+              Some(ResourceType::Energy)) > 0,
+          _ => false
+        }
+      }).collect();
+    if !targets.is_empty() {
+      if let Some(target) = path.find_nearest_of(targets) {
+        self.data().set_target(Target::Structure(target.clone()));
+        return self.handle_code(self.transfer(),
+        "Transferring energy to Spawn/Extension");
+      }
+    }
+
+    // Everything else
+    let targets = self.creep.room().find(find::STRUCTURES);
+    let targets: Vec<&Structure> = targets
+      .iter()
+      .filter(|s| {
+        if let Some(s) = s.as_has_store() {
+          if s.store_free_capacity(Some(ResourceType::Energy)) > 0 {
+            return true;
+          }
+        }
+        false
+      }).collect();
+
+    if let Some(target) = path.find_nearest_of(targets) {
+      return self.handle_code(self.transfer(), "Transfering to structure");
+    }
+
+    ReturnCode::NotFound
   }
 
   /// This will find and repair the nearest damaged structure
