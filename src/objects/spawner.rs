@@ -60,12 +60,16 @@ impl Spawner {
 
   /// This expands a body to fill a room or
   fn expand_body(&self, body: &[Part]) -> Vec<Part> {
+    debug!("Expanding body {:?}", body);
+    debug!("Initial cost {}", Self::body_cost(body));
     let capacity = self.room.energy_capacity_available();
-    let num_parts = Self::body_cost(body) / capacity;
+    debug!("Energy capacity is {}", capacity);
+    let num_parts = capacity / Self::body_cost(body);
+    debug!("Number of each part is {}", num_parts);
 
     let mut parts = vec![];
     for part in Vec::from(body) {
-      for _ in 1..num_parts {
+      for _ in 1..num_parts as u32 {
         parts.push(part);
       }
     }
@@ -76,7 +80,7 @@ impl Spawner {
   /// This expands only as much as can currently be afforded.
   fn emergency_expand_body(&self, body: &[Part]) -> Vec<Part> {
     let capacity = self.room.energy_available();
-    let num_parts = Self::body_cost(body) / capacity;
+    let num_parts = capacity / Self::body_cost(body);
 
     let mut parts = vec![];
     for part in Vec::from(body) {
@@ -103,14 +107,17 @@ impl Spawner {
 
   /// This spawns a creep with a given role
   pub fn spawn(&self, role: Role) -> ReturnCode {
+    debug!("Spawning {}...", role);
     let (body, expand) = role.body();
+    debug!("--with body model {:?}", body.as_slice());
 
     let body = if expand { self.expand_body(&body) } else { body };
 
     let name = Self::get_available_name();
     let opts = SpawnOptions::new().memory(role.memory());
 
-    self.spawn.spawn_creep_with_options(&body, name, &opts)
+    debug!("Spawning creep named: {}", name);
+    self.spawn.spawn_creep_with_options(body.as_slice(), name, &opts)
   }
 
   /// Spawn a creep with whatever energy is available
@@ -134,7 +141,8 @@ impl Spawner {
     // then iterate through all the creeps and get their roles.
     for creep in game::creeps::values() {
       let creeper = Creeper::new(creep);
-      let entry = role_map.entry(creeper.role.to_string()).or_insert(vec![]);
+      let entry =
+        role_map.entry(creeper.role.to_string()).or_insert_with(|| vec![]);
       entry.push(creeper);
     }
 
@@ -147,7 +155,7 @@ impl Spawner {
           value.len(),
           self.get_min(&role.clone()),
           key,
-          value.into_iter().map(|c| c.creep.name()).collect::<Vec<String>>()
+          value.iter().map(|c| c.creep.name()).collect::<Vec<String>>()
         );
       }
     }
@@ -168,7 +176,7 @@ impl Spawner {
       }
     } else if self.get_min(&role) > 0 {
       // spawn some because there are none.
-      return self.spawn(role);
+      return self.emergency_spawn(role);
     }
 
     // spawn upgraders if necessary

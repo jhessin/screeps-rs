@@ -277,10 +277,13 @@ impl Creeper {
           }
         }
         None
-      }).collect();
+      })
+      .collect();
     if !targets.is_empty() {
       if let Some(target) = path.find_nearest_of(targets) {
-        self.data().set_target(Target::Structure(Structure::Tower(target.clone())));
+        self
+          .data()
+          .set_target(Target::Structure(Structure::Tower(target.clone())));
         return self.handle_code(self.transfer(), "Transfering to tower");
       }
     }
@@ -289,22 +292,23 @@ impl Creeper {
     let targets = self.creep.room().find(find::STRUCTURES);
     let targets: Vec<&Structure> = targets
       .iter()
-      .filter(|s| {
-        match s {
-          Structure::Extension(s) =>
-            s.store_free_capacity(
-              Some(ResourceType::Energy)) > 0,
-          Structure::Spawn(s) =>
-            s.store_free_capacity(
-              Some(ResourceType::Energy)) > 0,
-          _ => false
+      .filter(|s| match s {
+        Structure::Extension(s) => {
+          s.store_free_capacity(Some(ResourceType::Energy)) > 0
         }
-      }).collect();
+        Structure::Spawn(s) => {
+          s.store_free_capacity(Some(ResourceType::Energy)) > 0
+        }
+        _ => false,
+      })
+      .collect();
     if !targets.is_empty() {
       if let Some(target) = path.find_nearest_of(targets) {
         self.data().set_target(Target::Structure(target.clone()));
-        return self.handle_code(self.transfer(),
-        "Transferring energy to Spawn/Extension");
+        return self.handle_code(
+          self.transfer(),
+          "Transferring energy to Spawn/Extension",
+        );
       }
     }
 
@@ -319,9 +323,11 @@ impl Creeper {
           }
         }
         false
-      }).collect();
+      })
+      .collect();
 
     if let Some(target) = path.find_nearest_of(targets) {
+      self.data().set_target(Target::Structure(target.clone()));
       return self.handle_code(self.transfer(), "Transfering to structure");
     }
 
