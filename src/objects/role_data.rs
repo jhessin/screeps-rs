@@ -14,11 +14,7 @@ pub struct RoleData {
 
 impl Default for RoleData {
   fn default() -> Self {
-    RoleData {
-      source_id: None,
-      target_id: None,
-      ratio: None,
-    }
+    RoleData { source_id: None, target_id: None, ratio: None }
   }
 }
 

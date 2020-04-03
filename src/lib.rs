@@ -1,6 +1,7 @@
 //! This crate provides a rust based foundation for playing the screeps game.
 #![warn(missing_docs)]
 
+pub use std::collections::HashMap;
 /// collections
 pub use std::collections::HashSet;
 /// Standard display format for saving to memory.

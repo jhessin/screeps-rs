@@ -42,42 +42,42 @@ impl SerializedTarget {
             return Some(Target::Source(source));
           }
         }
-      },
+      }
       SerializedTarget::Structure(id) => {
-          if let Ok(source) = ObjectId::<Structure>::from_str(id) {
-            if let Some(source) = source.resolve() {
-              return Some(Target::Structure(source));
-            }
+        if let Ok(source) = ObjectId::<Structure>::from_str(id) {
+          if let Some(source) = source.resolve() {
+            return Some(Target::Structure(source));
           }
-      },
+        }
+      }
       SerializedTarget::Tombstone(id) => {
         if let Ok(source) = ObjectId::<Tombstone>::from_str(id) {
           if let Some(source) = source.resolve() {
             return Some(Target::Tombstone(source));
           }
         }
-      },
+      }
       SerializedTarget::Ruin(id) => {
         if let Ok(source) = ObjectId::<Ruin>::from_str(id) {
           if let Some(source) = source.resolve() {
             return Some(Target::Ruin(source));
           }
         }
-      },
+      }
       SerializedTarget::Resource(id) => {
         if let Ok(source) = ObjectId::<Resource>::from_str(id) {
           if let Some(source) = source.resolve() {
             return Some(Target::Resource(source));
           }
         }
-      },
+      }
       SerializedTarget::Creep(id) => {
         if let Ok(source) = ObjectId::<Creep>::from_str(id) {
           if let Some(source) = source.resolve() {
             return Some(Target::Creep(source));
           }
         }
-      },
+      }
     }
 
     None
@@ -107,27 +107,27 @@ impl Target {
       Target::Source(obj) => {
         let id = obj.id().to_string();
         SerializedTarget::Source(id)
-      },
+      }
       Target::Structure(obj) => {
         let id = obj.id().to_string();
         SerializedTarget::Structure(id)
-      },
+      }
       Target::Tombstone(obj) => {
         let id = obj.id().to_string();
         SerializedTarget::Tombstone(id)
-      },
+      }
       Target::Ruin(obj) => {
         let id = obj.id().to_string();
         SerializedTarget::Ruin(id)
-      },
+      }
       Target::Resource(obj) => {
         let id = obj.id().to_string();
         SerializedTarget::Source(id)
-      },
+      }
       Target::Creep(obj) => {
         let id = obj.id().to_string();
         SerializedTarget::Source(id)
-      },
+      }
     }
   }
 }

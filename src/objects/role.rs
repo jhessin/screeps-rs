@@ -6,24 +6,24 @@ use crate::*;
 pub enum Role {
   /// Harvest energy and place it into Extensions, Spawns, Towers, Storage
   /// fallback: -> Upgrader
-  Harvester,
+  Harvester(RoleData),
   /// Mine from source and drop on the ground on into a container.
   Miner(RoleData),
   /// Upgrade the room controller
-  Upgrader,
+  Upgrader(RoleData),
   /// Builds anything it finds
   /// fallback: -> Repair -> Upgrader
-  Builder,
+  Builder(RoleData),
   /// Repairs anything damaged except walls
   /// fallback: -> Upgrader
-  Repairer,
+  Repairer(RoleData),
   /// Repairs walls in a tiered system by the percentage of health it has.
   /// fallback: -> Upgrader
   WallRepairer(RoleData),
   /// Ferries resources from containers or the ground and places it in
   /// Extensions, Spawns, Towers, or Storage
   /// fallback: -> Repair -> Upgrader
-  Lorry,
+  Lorry(RoleData),
   /// Ferries resources between two specific locations.
   /// fallback: -> Repair -> Upgrader
   Specialist(RoleData),
@@ -32,8 +32,8 @@ pub enum Role {
 impl PartialEq for Role {
   fn eq(&self, other: &Self) -> bool {
     match self {
-      Role::Harvester => {
-        if let Role::Harvester = other {
+      Role::Harvester(_) => {
+        if let Role::Harvester(_) = other {
           true
         } else {
           false
@@ -46,22 +46,22 @@ impl PartialEq for Role {
           false
         }
       }
-      Role::Upgrader => {
-        if let Role::Upgrader = other {
+      Role::Upgrader(_) => {
+        if let Role::Upgrader(_) = other {
           true
         } else {
           false
         }
       }
-      Role::Builder => {
-        if let Role::Builder = other {
+      Role::Builder(_) => {
+        if let Role::Builder(_) = other {
           true
         } else {
           false
         }
       }
-      Role::Repairer => {
-        if let Role::Repairer = other {
+      Role::Repairer(_) => {
+        if let Role::Repairer(_) = other {
           true
         } else {
           false
@@ -74,8 +74,8 @@ impl PartialEq for Role {
           false
         }
       }
-      Role::Lorry => {
-        if let Role::Lorry = other {
+      Role::Lorry(_) => {
+        if let Role::Lorry(_) = other {
           true
         } else {
           false
@@ -97,14 +97,14 @@ impl PartialEq for Role {
 impl Display for Role {
   fn fmt(&self, f: &mut Formatter<'_>) -> Result {
     match self {
-      Role::Harvester => write!(f, "{}", HARVESTER),
+      Role::Harvester(_) => write!(f, "{}", HARVESTER),
       Role::Miner(_) => write!(f, "{}", MINER),
-      Role::Upgrader => write!(f, "{}", UPGRADER),
-      Role::Builder => write!(f, "{}", BUILDER),
-      Role::Repairer => write!(f, "{}", REPAIRER),
+      Role::Upgrader(_) => write!(f, "{}", UPGRADER),
+      Role::Builder(_) => write!(f, "{}", BUILDER),
+      Role::Repairer(_) => write!(f, "{}", REPAIRER),
       Role::WallRepairer(_) => write!(f, "{}", WALL_REPAIRER),
-      Role::Lorry => write!(f, "{}", LORRY),
-      Role::Specialist { .. } => write!(f, "{}", SPECIALIST),
+      Role::Lorry(_) => write!(f, "{}", LORRY),
+      Role::Specialist(_) => write!(f, "{}", SPECIALIST),
     }
   }
 }
@@ -123,25 +123,83 @@ impl Role {
   }
 }
 
+/// Get generics of each variant
+impl Role {
+  /// A generic harvester
+  pub fn harvester() -> Self {
+    Role::Harvester(RoleData::default())
+  }
+
+  /// A generic Miner
+  pub fn miner() -> Self {
+    Role::Miner(RoleData::default())
+  }
+
+  /// A generic Upgrader
+  pub fn upgrader() -> Self {
+    Role::Upgrader(RoleData::default())
+  }
+
+  /// A generic Builder
+  pub fn builder() -> Self {
+    Role::Builder(RoleData::default())
+  }
+
+  /// A generic Repairer
+  pub fn repairer() -> Self {
+    Role::Repairer(RoleData::default())
+  }
+
+  /// A generic WallRepairer
+  pub fn wall_repairer() -> Self {
+    Role::WallRepairer(RoleData::default())
+  }
+
+  /// A generic Lorry
+  pub fn lorry() -> Self {
+    Role::Lorry(RoleData::default())
+  }
+
+  /// A generic Specialist
+  pub fn specialist() -> Self {
+    Role::Specialist(RoleData::default())
+  }
+}
+
 /// General helper methods
 impl Role {
+  /// Returns a list of Roles for counting
+  pub fn list() -> Vec<Role> {
+    let d = RoleData::default();
+    vec![
+      Role::Harvester(d.clone()),
+      //      Role::Miner(d.clone()),
+      Role::Upgrader(d.clone()),
+      Role::Builder(d.clone()),
+      Role::Repairer(d.clone()),
+      Role::WallRepairer(d.clone()),
+      Role::Lorry(d.clone()),
+      Role::Specialist(d),
+    ]
+  }
+
   /// Returns the appropriate body for this role as well as if it should be expanded.
   pub fn body(&self) -> (Vec<Part>, bool) {
     use Part::*;
     match self {
-      Role::Harvester => (vec![Work, Carry, Move, Move], true),
+      Role::Harvester(_) => (vec![Work, Carry, Move, Move], true),
       Role::Miner(_) => (vec![Work, Work, Work, Work, Work, Move], false),
-      Role::Upgrader => (vec![Work, Carry, Move, Move], true),
-      Role::Builder => (vec![Work, Carry, Move, Move], true),
-      Role::Repairer => (vec![Work, Carry, Move, Move], true),
+      Role::Upgrader(_) => (vec![Work, Carry, Move, Move], true),
+      Role::Builder(_) => (vec![Work, Carry, Move, Move], true),
+      Role::Repairer(_) => (vec![Work, Carry, Move, Move], true),
       Role::WallRepairer(_) => (vec![Work, Carry, Move, Move], true),
-      Role::Lorry => (vec![Carry, Carry, Move, Move], true),
+      Role::Lorry(_) => (vec![Carry, Carry, Move, Move], true),
       Role::Specialist(_) => (vec![Carry, Carry, Move, Move], true),
     }
   }
 
   /// Determines if a source has a miner attached to it.
-  /// TODO: Move this to another object
+  /// TODO: Move this to another object possibly spawner?
   pub fn has_miner(source: &Source) -> bool {
     for creep in game::creeps::values() {
       let creep = Creeper::new(creep);
@@ -158,7 +216,7 @@ impl Role {
   //   let working = Self::is_working(&creep);
   //
   //   match self {
-  //     Role::Harvester => {
+  //     Role::Harvester(_) => {
   //       if working {
   //         deliver_energy(creep)
   //       } else {
@@ -172,21 +230,21 @@ impl Role {
   //         ReturnCode::NotFound
   //       }
   //     },
-  //     Role::Upgrader => {
+  //     Role::Upgrader(_) => {
   //       if working {
   //         upgrade_controller(creep)
   //       } else {
   //         gather_energy(creep)
   //       }
   //     },
-  //     Role::Builder => {
+  //     Role::Builder(_) => {
   //       if working {
   //         build_nearest(creep)
   //       } else {
   //         gather_energy(creep)
   //       }
   //     },
-  //     Role::Repairer => {
+  //     Role::Repairer(_) => {
   //       if working {
   //         repair_nearest(creep)
   //       } else {

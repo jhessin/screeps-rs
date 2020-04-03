@@ -2,16 +2,13 @@
 use crate::*;
 
 const ROLE_KEY: &str = "role";
-const DATA_KEY: &str = "data";
 
 /// Wraps a Creep in superpowers
 pub struct Creeper {
   /// The creep that this creeper controls
-  creep: Creep,
+  pub creep: Creep,
   /// The role assigned this creeper.
   pub role: Role,
-  /// The data assigned
-  pub data: RoleData,
 }
 
 impl Creeper {
@@ -22,45 +19,33 @@ impl Creeper {
       if let Ok(role) = from_str::<Role>(&role) {
         role
       } else {
-        Role::Upgrader
+        Role::Upgrader(RoleData::default())
       }
     } else {
-      Role::Upgrader
+      Role::Upgrader(RoleData::default())
     };
 
-    // Get the data if possible
-    let unwrap_role = || match &role {
-      Role::Miner(d) => d.clone(),
-      Role::WallRepairer(d) => d.clone(),
-      Role::Specialist(d) => d.clone(),
-      _ => RoleData::default(),
-    };
+    Creeper { creep, role }
+  }
 
-    let data = if let Ok(Some(d)) = creep.memory().string(DATA_KEY) {
-      if let Ok(d) = from_str::<RoleData>(&d) {
-        d
-      } else {
-        unwrap_role()
-      }
-    } else {
-      unwrap_role()
-    };
-    Creeper { creep, role, data }
+  /// Get the creeps appropriate data
+  pub fn data(&mut self) -> &mut RoleData {
+    match &mut self.role {
+      Role::Harvester(d) => d,
+      Role::Miner(d) => d,
+      Role::Upgrader(d) => d,
+      Role::Builder(d) => d,
+      Role::Repairer(d) => d,
+      Role::WallRepairer(d) => d,
+      Role::Lorry(d) => d,
+      Role::Specialist(d) => d,
+    }
   }
 
   /// saves the updated creep data to memory
   fn save(&mut self) -> std::result::Result<(), Box<dyn std::error::Error>> {
-    // save data to appropriate roles
-    self.role = match self.role.clone() {
-      Role::Miner(_) => Role::Miner(self.data.clone()),
-      Role::WallRepairer(_) => Role::WallRepairer(self.data.clone()),
-      Role::Specialist(_) => Role::Specialist(self.data.clone()),
-      _ => self.role.clone(),
-    };
     let role = to_string(&self.role)?;
-    let data = to_string(&self.data)?;
     self.creep.memory().set(ROLE_KEY, role);
-    self.creep.memory().set(DATA_KEY, data);
 
     Ok(())
   }
@@ -90,7 +75,7 @@ impl Creeper {
     let working = self.is_working();
 
     let code = match self.role {
-      Role::Harvester => {
+      Role::Harvester(_) => {
         if working {
           self.deliver_energy()
         } else {
@@ -98,21 +83,21 @@ impl Creeper {
         }
       }
       Role::Miner(_) => self.mine(),
-      Role::Upgrader => {
+      Role::Upgrader(_) => {
         if working {
           self.upgrade_controller()
         } else {
           self.gather_energy()
         }
       }
-      Role::Builder => {
+      Role::Builder(_) => {
         if working {
           self.build_nearest()
         } else {
           self.gather_energy()
         }
       }
-      Role::Repairer => {
+      Role::Repairer(_) => {
         if working {
           self.repair_nearest()
         } else {
@@ -126,7 +111,7 @@ impl Creeper {
           self.gather_energy()
         }
       }
-      Role::Lorry => {
+      Role::Lorry(_) => {
         if working {
           self.deliver_energy()
         } else {
@@ -159,8 +144,8 @@ impl Creeper {
   }
 
   /// A utility to handle traveling to a resource/target
-  fn handle_code(&self, code: ReturnCode, msg: &'static str) -> ReturnCode {
-    let target = match self.data.target() {
+  fn handle_code(&mut self, code: ReturnCode, msg: &'static str) -> ReturnCode {
+    let target = match self.data().target() {
       Some(Target::Resource(target)) => target.pos(),
       Some(Target::Source(target)) => target.pos(),
       Some(Target::Ruin(target)) => target.pos(),
@@ -189,7 +174,7 @@ impl Creeper {
   /// This is for the HARVESTER ONLY - it gathers energy directly from the source.
   pub fn harvest_energy(&mut self) -> ReturnCode {
     // find the nearest source if there isn't one already
-    if let Some(Target::Source(s)) = self.data.source() {
+    if let Some(Target::Source(s)) = self.data().source() {
       s
     } else {
       let source = js! {
@@ -199,7 +184,7 @@ impl Creeper {
       if let Some(source) = source.into_reference() {
         if let Some(source) = source.downcast::<Source>() {
           info!("Successfully harvesting from nearest source!");
-          self.data.set_source(Target::Source(source.clone()));
+          self.data().set_source(Target::Source(source.clone()));
           source
         } else {
           return ReturnCode::NotFound;
@@ -223,7 +208,7 @@ impl Creeper {
       if let Some(target) =
         path.find_nearest_of::<Resource>(targets.iter().collect())
       {
-        self.data.set_target(Target::Resource(target.clone()));
+        self.data().set_target(Target::Resource(target.clone()));
         return self.handle_code(self.pickup(), "Picking up resource");
       }
     }
@@ -236,7 +221,7 @@ impl Creeper {
       .collect();
     if !targets.is_empty() {
       if let Some(target) = path.find_nearest_of(targets) {
-        self.data.set_source(Target::Tombstone(target.clone()));
+        self.data().set_source(Target::Tombstone(target.clone()));
         return self.handle_code(self.withdraw(), "Drawing from Tombstone");
       }
     }
@@ -249,7 +234,7 @@ impl Creeper {
       .collect();
     if !targets.is_empty() {
       if let Some(target) = path.find_nearest_of(targets) {
-        self.data.set_source(Target::Ruin(target.clone()));
+        self.data().set_source(Target::Ruin(target.clone()));
         return self.handle_code(self.withdraw(), "Withdrawing from Ruin");
       }
     }
