@@ -326,6 +326,7 @@ impl Creeper {
   }
 
   /// This will deliver the energy to the needed spots
+  /// fallback -> upgrade_controller
   pub fn deliver_energy(&mut self) -> ReturnCode {
     // prioritize targets
     // Check for existing target
@@ -407,11 +408,13 @@ impl Creeper {
       return self.transfer();
     }
 
-    ReturnCode::NotFound
+    // if all else fails just upgrade the controller.
+    self.upgrade_controller()
   }
 
   /// This will find and repair the nearest damaged structure
   /// excluding walls
+  /// fallback -> build_nearest
   pub fn repair_nearest(&mut self) -> ReturnCode {
     // Check for existing target
     if let Some(Target::Structure(s)) = self.data().target() {
@@ -446,10 +449,11 @@ impl Creeper {
       return self.repair();
     }
 
-    ReturnCode::NotFound
+    self.build_nearest()
   }
 
   /// This repairs the nearest wall
+  /// fallback -> repair_nearest
   pub fn repair_wall(&mut self) -> ReturnCode {
     const STARTING_RATIO: f64 = 0.0001;
     // Check for valid ratio
@@ -531,10 +535,11 @@ impl Creeper {
       return self.repair();
     }
 
-    ReturnCode::NotFound
+    self.repair_nearest()
   }
 
   /// This builds the nearest construction site
+  /// fallback -> Upgrade_controller
   pub fn build_nearest(&mut self) -> ReturnCode {
     // check for existing target
     if let Some(Target::ConstructionSite(_)) = self.data().target() {
@@ -552,7 +557,7 @@ impl Creeper {
       return self.build();
     }
 
-    ReturnCode::NotFound
+    self.upgrade_controller()
   }
 
   /// This picks up dropped resources
