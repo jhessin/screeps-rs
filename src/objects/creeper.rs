@@ -567,6 +567,19 @@ impl Creeper {
   /// This gathers energy from the source assigned to
   /// data.source()
   pub fn mine(&mut self) -> ReturnCode {
+    // Check for container mining
+    if let Some(Target::Structure(Structure::Container(container))) =
+      self.data().target()
+    {
+      if self.creep.pos() == container.pos() {
+        if let Some(Target::Source(src)) = self.data().source() {
+          return self.creep.harvest(&src);
+        }
+      } else {
+        return self.creep.move_to(&container);
+      }
+    }
+
     if let Some(Target::Source(s)) = self.data().source() {
       self.handle_code(self.creep.harvest(&s), "Harvesting source")
     } else {
