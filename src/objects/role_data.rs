@@ -5,9 +5,9 @@ use crate::*;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RoleData {
   /// This contains the id of the object we are getting energy from.
-  source_id: Option<SerializedTarget>,
+  pub source_id: Option<SerializedTarget>,
   /// This contains the id of the object we are taking energy toward
-  target_id: Option<SerializedTarget>,
+  pub target_id: Option<SerializedTarget>,
   /// This is a ratio that a wall repairer will use to cut back on cpu
   pub ratio: Option<f64>,
 }

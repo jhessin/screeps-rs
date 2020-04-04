@@ -121,6 +121,34 @@ impl Role {
     }
     mem
   }
+
+  /// This builds a miner role given a particular source
+  pub fn build_miner(source: Source) -> Self {
+    let targets: Vec<StructureContainer> = source
+      .pos()
+      .find_in_range(find::STRUCTURES, 1)
+      .into_iter()
+      .filter_map(|s| {
+        if let Structure::Container(c) = s {
+          return Some(c);
+        }
+        None
+      })
+      .collect();
+    let target = if targets.is_empty() {
+      None
+    } else {
+      let target = targets.get(0).unwrap().clone();
+      let target = Target::Structure(Structure::Container(target));
+      Some(target.downgrade())
+    };
+    let source = Target::Source(source).downgrade();
+    Role::Miner(RoleData {
+      source_id: Some(source),
+      target_id: target,
+      ratio: None,
+    })
+  }
 }
 
 /// Get generics of each variant

@@ -1,5 +1,6 @@
 //! Wraps up a Creep and gives it superpowers!
 use crate::*;
+use screeps::ResourceType::Energy;
 
 const ROLE_KEY: &str = "role";
 
@@ -50,19 +51,30 @@ impl Creeper {
     Ok(())
   }
 
+  /// Get a list of the Creep names of creeps with a particular role.
+  pub fn names_for_role(role: Role) -> Vec<String> {
+    game::creeps::values()
+      .into_iter()
+      .filter_map(|creep| {
+        let creep = Creeper::new(creep);
+        if creep.role == role {
+          Some(creep.creep.name())
+        } else {
+          None
+        }
+      })
+      .collect()
+  }
+
   /// Is this creep working
   pub fn is_working(&self) -> bool {
     const WORKING: &str = "working";
     let working = self.creep.memory().bool(WORKING);
 
-    if working
-      && self.creep.store_used_capacity(Some(ResourceType::Energy)) == 0
-    {
+    if working && self.creep.store_used_capacity(Some(Energy)) == 0 {
       self.creep.memory().set(WORKING, false);
       false
-    } else if !working
-      && self.creep.store_free_capacity(Some(ResourceType::Energy)) == 0
-    {
+    } else if !working && self.creep.store_free_capacity(Some(Energy)) == 0 {
       self.creep.memory().set(WORKING, true);
       true
     } else {
@@ -145,14 +157,20 @@ impl Creeper {
 
   /// A utility to handle traveling to a resource/target
   fn handle_code(&mut self, code: ReturnCode, msg: &'static str) -> ReturnCode {
-    let target = match self.data().target() {
+    let target = if self.is_working() {
+      self.data().target()
+    } else {
+      self.data().source()
+    };
+    let target = match target {
       Some(Target::Resource(target)) => target.pos(),
       Some(Target::Source(target)) => target.pos(),
       Some(Target::Ruin(target)) => target.pos(),
       Some(Target::Structure(target)) => target.pos(),
       Some(Target::Tombstone(target)) => target.pos(),
       Some(Target::Creep(target)) => target.pos(),
-      None => return ReturnCode::NotFound,
+      Some(Target::ConstructionSite(target)) => target.pos(),
+      None => return ReturnCode::InvalidTarget,
     };
 
     if code == ReturnCode::NotInRange {
@@ -174,21 +192,14 @@ impl Creeper {
   /// This is for the HARVESTER ONLY - it gathers energy directly from the source.
   pub fn harvest_energy(&mut self) -> ReturnCode {
     // find the nearest source if there isn't one already
-    if let Some(Target::Source(s)) = self.data().source() {
-      s
+    if let Some(Target::Source(_)) = self.data().source() {
+      ()
     } else {
-      let source = js! {
-        let creep = @{self.creep.clone()};
-        creep.findNearestByPath(FIND_SOURCES)
-      };
-      if let Some(source) = source.into_reference() {
-        if let Some(source) = source.downcast::<Source>() {
-          info!("Successfully harvesting from nearest source!");
-          self.data().set_source(Target::Source(source.clone()));
-          source
-        } else {
-          return ReturnCode::NotFound;
-        }
+      let sources = self.creep.room().find(find::SOURCES_ACTIVE);
+      let sources: Vec<&Source> = sources.iter().collect();
+      let finder = Finder::new(self.creep.clone());
+      if let Some(source) = finder.find_nearest_of(sources) {
+        self.data().set_source(Target::Source(source.clone()));
       } else {
         return ReturnCode::NotFound;
       }
@@ -201,6 +212,58 @@ impl Creeper {
   /// Every creep will use this except miner, or specialist
   pub fn gather_energy(&mut self) -> ReturnCode {
     // prioritize targets
+    // check for existing target
+    // Verify validity
+    if let Some(source) = self.data().source() {
+      match source {
+        Target::Source(s) => {
+          if s.energy() > 0 {
+            return self.mine();
+          }
+        }
+        Target::Structure(s) => {
+          if let Some(s) = s.as_has_store() {
+            if s.store_used_capacity(Some(Energy)) > 0 {
+              return self.withdraw();
+            }
+          }
+        }
+        Target::Tombstone(s) => {
+          if s.store_used_capacity(Some(Energy)) > 0 {
+            return self.withdraw();
+          }
+        }
+        Target::Ruin(s) => {
+          if s.store_used_capacity(Some(Energy)) > 0 {
+            return self.withdraw();
+          }
+        }
+        Target::Resource(s) => {
+          if s.amount() > 0 {
+            return self.pickup();
+          }
+        }
+        Target::Creep(c) => {
+          let mut creeper = Creeper::new(c);
+          if creeper.creep.store_used_capacity(Some(Energy)) > 0
+            && creeper.is_working()
+          {
+            match creeper.role {
+              Role::Lorry(_) => {
+                creeper.data().set_target(Target::Creep(self.creep.clone()));
+                return ReturnCode::Ok;
+              }
+              Role::Harvester(_) => {
+                creeper.data().set_target(Target::Creep(self.creep.clone()));
+                return ReturnCode::Ok;
+              }
+              _ => (),
+            }
+          }
+        }
+        _ => (),
+      };
+    }
     // Dropped Resources first
     let path = Finder::new(self.creep.clone());
     let targets = self.creep.room().find(find::DROPPED_RESOURCES);
@@ -209,7 +272,7 @@ impl Creeper {
         path.find_nearest_of::<Resource>(targets.iter().collect())
       {
         self.data().set_target(Target::Resource(target.clone()));
-        return self.handle_code(self.pickup(), "Picking up resource");
+        return self.pickup();
       }
     }
 
@@ -217,12 +280,12 @@ impl Creeper {
     let targets = self.creep.room().find(find::TOMBSTONES);
     let targets: Vec<&Tombstone> = targets
       .iter()
-      .filter(|t| t.store_used_capacity(Some(ResourceType::Energy)) > 0)
+      .filter(|t| t.store_used_capacity(Some(Energy)) > 0)
       .collect();
     if !targets.is_empty() {
       if let Some(target) = path.find_nearest_of(targets) {
         self.data().set_source(Target::Tombstone(target.clone()));
-        return self.handle_code(self.withdraw(), "Drawing from Tombstone");
+        return self.withdraw();
       }
     }
 
@@ -230,12 +293,12 @@ impl Creeper {
     let targets = self.creep.room().find(find::RUINS);
     let targets: Vec<&Ruin> = targets
       .iter()
-      .filter(|r| r.store_used_capacity(Some(ResourceType::Energy)) > 0)
+      .filter(|r| r.store_used_capacity(Some(Energy)) > 0)
       .collect();
     if !targets.is_empty() {
       if let Some(target) = path.find_nearest_of(targets) {
         self.data().set_source(Target::Ruin(target.clone()));
-        return self.handle_code(self.withdraw(), "Withdrawing from Ruin");
+        return self.withdraw();
       }
     }
 
@@ -245,7 +308,7 @@ impl Creeper {
       .iter()
       .filter(|s| {
         if let Some(s) = s.as_has_store() {
-          if s.store_used_capacity(Some(ResourceType::Energy)) > 0 {
+          if s.store_used_capacity(Some(Energy)) > 0 {
             return true;
           }
         }
@@ -255,7 +318,7 @@ impl Creeper {
     if !targets.is_empty() {
       if let Some(target) = path.find_nearest_of(targets) {
         self.data().set_source(Target::Structure(target.clone()));
-        return self.handle_code(self.withdraw(), "Withdrawing from structure");
+        return self.withdraw();
       }
     }
 
@@ -265,6 +328,26 @@ impl Creeper {
   /// This will deliver the energy to the needed spots
   pub fn deliver_energy(&mut self) -> ReturnCode {
     // prioritize targets
+    // Check for existing target
+    // and verify that it is valid.
+    if let Some(target) = self.data().target() {
+      match target {
+        Target::Structure(s) => {
+          if let Some(s) = s.as_has_store() {
+            if s.store_free_capacity(Some(Energy)) > 0 {
+              return self.transfer();
+            }
+          }
+        }
+        Target::Creep(c) => {
+          if c.store_free_capacity(Some(Energy)) > 0 {
+            return self.transfer();
+          }
+        }
+        // Everything else is invalid so continue and try to find another target.
+        _ => (),
+      };
+    }
     let path = Finder::new(self.creep.clone());
     // towers
     let targets = self.creep.room().find(find::STRUCTURES);
@@ -272,7 +355,7 @@ impl Creeper {
       .iter()
       .filter_map(|s| {
         if let Structure::Tower(t) = s {
-          if t.store_free_capacity(Some(ResourceType::Energy)) > 0 {
+          if t.store_free_capacity(Some(Energy)) > 0 {
             return Some(t);
           }
         }
@@ -284,7 +367,7 @@ impl Creeper {
         self
           .data()
           .set_target(Target::Structure(Structure::Tower(target.clone())));
-        return self.handle_code(self.transfer(), "Transfering to tower");
+        return self.transfer();
       }
     }
 
@@ -293,22 +376,15 @@ impl Creeper {
     let targets: Vec<&Structure> = targets
       .iter()
       .filter(|s| match s {
-        Structure::Extension(s) => {
-          s.store_free_capacity(Some(ResourceType::Energy)) > 0
-        }
-        Structure::Spawn(s) => {
-          s.store_free_capacity(Some(ResourceType::Energy)) > 0
-        }
+        Structure::Extension(s) => s.store_free_capacity(Some(Energy)) > 0,
+        Structure::Spawn(s) => s.store_free_capacity(Some(Energy)) > 0,
         _ => false,
       })
       .collect();
     if !targets.is_empty() {
       if let Some(target) = path.find_nearest_of(targets) {
         self.data().set_target(Target::Structure(target.clone()));
-        return self.handle_code(
-          self.transfer(),
-          "Transferring energy to Spawn/Extension",
-        );
+        return self.transfer();
       }
     }
 
@@ -318,7 +394,7 @@ impl Creeper {
       .iter()
       .filter(|s| {
         if let Some(s) = s.as_has_store() {
-          if s.store_free_capacity(Some(ResourceType::Energy)) > 0 {
+          if s.store_free_capacity(Some(Energy)) > 0 {
             return true;
           }
         }
@@ -328,7 +404,7 @@ impl Creeper {
 
     if let Some(target) = path.find_nearest_of(targets) {
       self.data().set_target(Target::Structure(target.clone()));
-      return self.handle_code(self.transfer(), "Transfering to structure");
+      return self.transfer();
     }
 
     ReturnCode::NotFound
@@ -336,68 +412,259 @@ impl Creeper {
 
   /// This will find and repair the nearest damaged structure
   /// excluding walls
-  pub fn repair_nearest(&self) -> ReturnCode {
-    // TODO
-    unimplemented!()
+  pub fn repair_nearest(&mut self) -> ReturnCode {
+    // Check for existing target
+    if let Some(Target::Structure(s)) = self.data().target() {
+      // ensure it is still valid
+      if let Some(att) = s.as_attackable() {
+        if att.hits() < att.hits_max() {
+          return self.repair();
+        }
+      }
+    }
+
+    // find the nearest damaged structure
+    let targets = self.creep.room().find(find::STRUCTURES);
+    let targets: Vec<&Structure> = targets
+      .iter()
+      .filter(|s| {
+        // exclude walls
+        if let Structure::Wall(_) = s {
+          false
+        } else if let Some(att) = s.as_attackable() {
+          att.hits() < att.hits_max()
+        } else {
+          false
+        }
+      })
+      .collect();
+    // find the nearest
+    let finder = Finder::new(self.creep.clone());
+    if let Some(target) = finder.find_nearest_of(targets) {
+      // call self.data().set_target()
+      self.data().set_target(Target::Structure(target.clone()));
+      return self.repair();
+    }
+
+    ReturnCode::NotFound
   }
 
   /// This repairs the nearest wall
-  pub fn repair_wall(&self) -> ReturnCode {
-    // TODO
-    unimplemented!()
+  pub fn repair_wall(&mut self) -> ReturnCode {
+    const STARTING_RATIO: f64 = 0.0001;
+    // Check for valid ratio
+    let ratio = if let Some(ratio) = self.data().ratio {
+      if ratio < 1.0 {
+        ratio
+      } else {
+        self.data().ratio = Some(STARTING_RATIO);
+        STARTING_RATIO
+      }
+    } else {
+      self.data().ratio = Some(STARTING_RATIO);
+      STARTING_RATIO
+    };
+
+    // Check for existing target
+    if let Some(Target::Structure(Structure::Wall(s))) = self.data().target() {
+      let hits = s.hits() as f64;
+      let max = s.hits_max() as f64;
+      // Check it is still below the threshold ratio.
+      if hits / max < ratio {
+        // valid pass on to repair task
+        return self.repair();
+      }
+    }
+
+    // otherwise reset ratio and loop for new target.
+    let mut ratio = STARTING_RATIO;
+    self.data().ratio = Some(ratio);
+
+    // First just get all the walls
+    let targets = self.creep.room().find(find::STRUCTURES);
+    let targets: Vec<StructureWall> = targets
+      .into_iter()
+      .filter_map(|s| {
+        if let Structure::Wall(wall) = s {
+          return Some(wall);
+        }
+        None
+      })
+      .collect();
+
+    // If there are no walls save time
+    if targets.is_empty() {
+      return ReturnCode::NotFound;
+    }
+
+    let targets = loop {
+      let targets: Vec<_> = targets
+        .iter()
+        .filter(|wall| {
+          let hits = wall.hits() as f64;
+          let max = wall.hits_max() as f64;
+          // Check it is still below the threshold ratio.
+          hits / max < ratio
+        })
+        .collect();
+
+      if targets.is_empty() {
+        ratio += 0.0001;
+        if (ratio - 1.0).abs() < 0.00001 {
+          return ReturnCode::Full;
+        }
+      } else {
+        break targets;
+      }
+    };
+
+    // Find the nearest
+    let finder = Finder::new(self.creep.clone());
+    if let Some(target) = finder.find_nearest_of(targets) {
+      // Save the target.
+      self
+        .data()
+        .set_target(Target::Structure(Structure::Wall(target.clone())));
+      // Save the ratio.
+      self.data().ratio = Some(ratio);
+      // call self.repair()
+      return self.repair();
+    }
+
+    ReturnCode::NotFound
   }
 
   /// This builds the nearest construction site
-  pub fn build_nearest(&self) -> ReturnCode {
-    // TODO
-    unimplemented!()
+  pub fn build_nearest(&mut self) -> ReturnCode {
+    // check for existing target
+    if let Some(Target::ConstructionSite(_)) = self.data().target() {
+      // any construction site is valid
+      return self.build();
+    }
+
+    // otherwise find the nearest
+    let targets = self.creep.room().find(find::CONSTRUCTION_SITES);
+    let targets: Vec<&ConstructionSite> = targets.iter().collect();
+    let finder = Finder::new(self.creep.clone());
+    if let Some(target) = finder.find_nearest_of(targets) {
+      // set it as target
+      self.data().set_target(Target::ConstructionSite(target.clone()));
+      return self.build();
+    }
+
+    ReturnCode::NotFound
   }
 
   /// This picks up dropped resources
-  /// Uses data.resource_target() to find the resource
-  pub fn pickup(&self) -> ReturnCode {
-    // TODO
-    unimplemented!()
+  pub fn pickup(&mut self) -> ReturnCode {
+    if let Some(Target::Resource(r)) = self.data().source() {
+      self.handle_code(self.creep.pickup(&r), "Picking up resource")
+    } else {
+      ReturnCode::InvalidTarget
+    }
   }
 
   /// This gathers energy from the source assigned to
   /// data.source()
-  pub fn mine(&self) -> ReturnCode {
-    // TODO
-    unimplemented!()
+  pub fn mine(&mut self) -> ReturnCode {
+    if let Some(Target::Source(s)) = self.data().source() {
+      self.handle_code(self.creep.harvest(&s), "Harvesting source")
+    } else {
+      ReturnCode::InvalidTarget
+    }
   }
 
   /// This will withdraw energy from the source provided
-  /// in data.source_structure()
-  pub fn withdraw(&self) -> ReturnCode {
-    // TODO
-    unimplemented!()
+  /// in data().source()
+  pub fn withdraw(&mut self) -> ReturnCode {
+    match self.data().source() {
+      Some(s) => match s {
+        Target::Source(s) => {
+          self.handle_code(self.creep.harvest(&s), "Harvesting source")
+        }
+        Target::Structure(s) => {
+          if let Some(w) = s.as_withdrawable() {
+            self.handle_code(
+              self.creep.withdraw_all(w, Energy),
+              "Withdrawing Energy",
+            )
+          } else {
+            ReturnCode::InvalidTarget
+          }
+        }
+        Target::Tombstone(s) => self.handle_code(
+          self.creep.withdraw_all(&s, Energy),
+          "Withdrawing from Tombstone",
+        ),
+        Target::Ruin(s) => self.handle_code(
+          self.creep.withdraw_all(&s, Energy),
+          "Withdrawing from Ruin",
+        ),
+        Target::Resource(s) => {
+          self.handle_code(self.creep.pickup(&s), "Picking up resource")
+        }
+        Target::Creep(_) => ReturnCode::Busy,
+        _ => ReturnCode::InvalidTarget,
+      },
+      None => ReturnCode::InvalidTarget,
+    }
   }
 
   /// This will transfer energy to the target structure
   /// @ data.target()
-  pub fn transfer(&self) -> ReturnCode {
-    // TODO
-    unimplemented!()
+  pub fn transfer(&mut self) -> ReturnCode {
+    match self.data().target() {
+      Some(Target::Structure(structure)) => {
+        if let Some(s) = structure.as_transferable() {
+          return self.handle_code(
+            self.creep.transfer_all(s, Energy),
+            "Transferring Energy",
+          );
+        }
+      }
+      Some(Target::Creep(c)) => {
+        return self.handle_code(
+          self.creep.transfer_all(&c, Energy),
+          "Transferring to Creep",
+        )
+      }
+      _ => return ReturnCode::InvalidTarget,
+    }
+
+    ReturnCode::InvalidTarget
   }
 
   /// This will repair the structure referred to by
   /// data.target()
-  pub fn repair(&self) -> ReturnCode {
-    // TODO
-    unimplemented!()
+  pub fn repair(&mut self) -> ReturnCode {
+    match self.data().target() {
+      Some(Target::Structure(s)) => {
+        self.handle_code(self.creep.repair(&s), "Repairing Structure")
+      }
+      _ => ReturnCode::InvalidTarget,
+    }
   }
 
   /// This will build the construction site
   /// stored as data.construction_target()
-  pub fn build(&self) -> ReturnCode {
-    // TODO
-    unimplemented!()
+  pub fn build(&mut self) -> ReturnCode {
+    match self.data().target() {
+      Some(Target::ConstructionSite(s)) => {
+        self.handle_code(self.creep.build(&s), "Building Construction Site")
+      }
+      _ => ReturnCode::InvalidTarget,
+    }
   }
 
   /// This will upgrade the controller
-  pub fn upgrade_controller(&self) -> ReturnCode {
-    // TODO
-    unimplemented!()
+  pub fn upgrade_controller(&mut self) -> ReturnCode {
+    let target = self.creep.room().controller().unwrap();
+    self
+      .data()
+      .set_target(Target::Structure(Structure::Controller(target.clone())));
+    self.handle_code(
+      self.creep.upgrade_controller(&target),
+      "Upgrading controller",
+    )
   }
 }

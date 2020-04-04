@@ -15,6 +15,8 @@ pub enum SerializedTarget {
   Ruin(String),
   /// A dropped resource
   Resource(String),
+  /// A construction site
+  ConstructionSite(String),
   /// A Creep
   Creep(String),
 }
@@ -28,6 +30,7 @@ impl Display for SerializedTarget {
       SerializedTarget::Ruin(_) => write!(f, "Ruin"),
       SerializedTarget::Resource(_) => write!(f, "Resource"),
       SerializedTarget::Creep(_) => write!(f, "Creep"),
+      SerializedTarget::ConstructionSite(_) => write!(f, "Construction Site"),
     }
   }
 }
@@ -78,6 +81,13 @@ impl SerializedTarget {
           }
         }
       }
+      SerializedTarget::ConstructionSite(id) => {
+        if let Ok(source) = ObjectId::<ConstructionSite>::from_str(id) {
+          if let Some(source) = source.resolve() {
+            return Some(Target::ConstructionSite(source));
+          }
+        }
+      }
     }
 
     None
@@ -96,6 +106,8 @@ pub enum Target {
   Ruin(Ruin),
   /// A dropped resource
   Resource(Resource),
+  /// A construction Site
+  ConstructionSite(ConstructionSite),
   /// A Creep
   Creep(Creep),
 }
@@ -127,6 +139,10 @@ impl Target {
       Target::Creep(obj) => {
         let id = obj.id().to_string();
         SerializedTarget::Source(id)
+      }
+      Target::ConstructionSite(obj) => {
+        let id = obj.id().to_string();
+        SerializedTarget::ConstructionSite(id)
       }
     }
   }

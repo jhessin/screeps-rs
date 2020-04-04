@@ -14,10 +14,10 @@ pub use log::*;
 pub use screeps::{
   find, game,
   memory::MemoryReference,
-  ObjectId,
   objects::*,
-  Part,
-  pathfinder::{search, SearchOptions}, Position, prelude::*, RawObjectId, ResourceType, ReturnCode,
+  pathfinder::{search, SearchOptions},
+  prelude::*,
+  ObjectId, Part, Position, RawObjectId, ResourceType, ReturnCode,
   RoomObjectProperties,
 };
 pub use serde::{Deserialize, Serialize};
@@ -25,11 +25,13 @@ pub use serde_json::{from_str, to_string};
 /// If we want to use js
 pub use stdweb::js;
 
+/// My modules
 pub use constants::*;
 pub use game_loop::*;
 pub use init::*;
 pub use memory::*;
 pub use objects::*;
+pub use traits::*;
 
 /// access the logging module
 pub mod logging;
@@ -39,3 +41,4 @@ mod game_loop;
 mod init;
 mod memory;
 mod objects;
+mod traits;
