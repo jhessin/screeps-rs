@@ -156,43 +156,43 @@ impl Spawner {
     );
     info!(
       "{} of {} Harvesters: {:?}",
-      miners.len(),
+      harvesters.len(),
       self.get_min(&Role::harvester()),
       &harvesters
     );
     info!(
       "{} of {} Builders: {:?}",
-      miners.len(),
+      builders.len(),
       self.get_min(&Role::builder()),
       &builders
     );
     info!(
       "{} of {} Upgraders: {:?}",
-      miners.len(),
+      upgraders.len(),
       self.get_min(&Role::upgrader()),
       &upgraders
     );
     info!(
       "{} of {} Repairers: {:?}",
-      miners.len(),
+      repairers.len(),
       self.get_min(&Role::repairer()),
       &repairers
     );
     info!(
       "{} of {} Wall Repairers: {:?}",
-      miners.len(),
+      wall_repairers.len(),
       self.get_min(&Role::wall_repairer()),
       &wall_repairers
     );
     info!(
       "{} of {} Lorries: {:?}",
-      miners.len(),
+      lorries.len(),
       self.get_min(&Role::lorry()),
       &lorries
     );
     info!(
       "{} of {} Specialists: {:?}",
-      miners.len(),
+      specialists.len(),
       self.get_min(&Role::specialist()),
       &specialists
     );
