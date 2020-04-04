@@ -277,8 +277,9 @@ impl Creeper {
       if let Some(source) =
         path.find_nearest_of::<Resource>(sources.iter().collect())
       {
-        debug!("Resource found!");
+        debug!("Resource found! Setting source.");
         self.data().set_source(Target::Resource(source.clone()));
+        debug!("Calling self.pickup()");
         return self.pickup();
       }
     }
@@ -569,10 +570,12 @@ impl Creeper {
 
   /// This picks up dropped resources
   pub fn pickup(&mut self) -> ReturnCode {
+    debug!("Inside self.pickup()");
     if let Some(Target::Resource(r)) = self.data().source() {
+      debug!("Attempting to pickup resource");
       self.handle_code(self.creep.pickup(&r), "Picking up resource")
     } else {
-      error!("Trying to pickup something that isn't a Resource");
+      debug!("Trying to pickup something that isn't a Resource");
       ReturnCode::InvalidTarget
     }
   }

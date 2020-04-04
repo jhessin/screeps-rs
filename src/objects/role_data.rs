@@ -21,11 +21,17 @@ impl Default for RoleData {
 /// Basic data access
 impl RoleData {
   /// This returns the source for a miner
-  pub fn source(&self) -> Option<Target> {
-    match &self.source_id {
+  pub fn source(&mut self) -> Option<Target> {
+    let result = match &self.source_id {
       Some(id) => id.upgrade(),
       _ => None,
+    };
+
+    if result.is_none() {
+      self.source_id = None;
     }
+
+    result
   }
 
   /// Sets the source_id using the source
@@ -34,11 +40,17 @@ impl RoleData {
   }
 
   /// This returns the target for a specialist, or a wall-repairer
-  pub fn target(&self) -> Option<Target> {
-    match &self.target_id {
+  pub fn target(&mut self) -> Option<Target> {
+    let result = match &self.target_id {
       Some(id) => id.upgrade(),
       _ => None,
+    };
+
+    if result.is_none() {
+      self.target_id = None;
     }
+
+    result
   }
 
   /// Sets the target id from a specified structure.

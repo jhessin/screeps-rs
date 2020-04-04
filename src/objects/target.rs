@@ -38,58 +38,81 @@ impl Display for SerializedTarget {
 impl SerializedTarget {
   /// Upgrades the TargetType to a full fledged Target
   pub fn upgrade(&self) -> Option<Target> {
+    debug!("Upgrading Target");
     match self {
       SerializedTarget::Source(id) => {
+        debug!("Target is a Source with id {}", &id);
         if let Ok(source) = ObjectId::<Source>::from_str(id) {
           if let Some(source) = source.resolve() {
-            return Some(Target::Source(source));
+            let target = Target::Source(source);
+            debug!("Target is a {}", &target);
+            return Some(target);
           }
         }
       }
       SerializedTarget::Structure(id) => {
+        debug!("Target is a Structure with id {}", &id);
         if let Ok(source) = ObjectId::<Structure>::from_str(id) {
           if let Some(source) = source.resolve() {
-            return Some(Target::Structure(source));
+            let target = Target::Structure(source);
+            debug!("Target is a {}", &target);
+            return Some(target);
           }
         }
       }
       SerializedTarget::Tombstone(id) => {
+        debug!("Target is a Tombstone with id {}", &id);
         if let Ok(source) = ObjectId::<Tombstone>::from_str(id) {
           if let Some(source) = source.resolve() {
-            return Some(Target::Tombstone(source));
+            let target = Target::Tombstone(source);
+            debug!("Target is a {}", &target);
+            return Some(target);
           }
         }
       }
       SerializedTarget::Ruin(id) => {
+        debug!("Target is a Ruin with id {}", &id);
         if let Ok(source) = ObjectId::<Ruin>::from_str(id) {
           if let Some(source) = source.resolve() {
-            return Some(Target::Ruin(source));
+            let target = Target::Ruin(source);
+            debug!("Target is a {}", &target);
+            return Some(target);
           }
         }
       }
       SerializedTarget::Resource(id) => {
+        debug!("Target is a Resource with id {}", &id);
         if let Ok(source) = ObjectId::<Resource>::from_str(id) {
           if let Some(source) = source.resolve() {
-            return Some(Target::Resource(source));
+            let target = Target::Resource(source);
+            debug!("Target is a {}", &target);
+            return Some(target);
           }
         }
       }
       SerializedTarget::Creep(id) => {
+        debug!("Target is a Creep with id {}", &id);
         if let Ok(source) = ObjectId::<Creep>::from_str(id) {
           if let Some(source) = source.resolve() {
-            return Some(Target::Creep(source));
+            let target = Target::Creep(source);
+            debug!("Target is a {}", &target);
+            return Some(target);
           }
         }
       }
       SerializedTarget::ConstructionSite(id) => {
+        debug!("Target is a ConstructionSite with id {}", &id);
         if let Ok(source) = ObjectId::<ConstructionSite>::from_str(id) {
           if let Some(source) = source.resolve() {
-            return Some(Target::ConstructionSite(source));
+            let target = Target::ConstructionSite(source);
+            debug!("Target is a {}", &target);
+            return Some(target);
           }
         }
       }
     }
 
+    debug!("Invalid target -> Returning None");
     None
   }
 }
@@ -112,9 +135,24 @@ pub enum Target {
   Creep(Creep),
 }
 
+impl Display for Target {
+  fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    match self {
+      Target::Source(_) => write!(f, "Source"),
+      Target::Structure(_) => write!(f, "Structure"),
+      Target::Tombstone(_) => write!(f, "Tombstone"),
+      Target::Ruin(_) => write!(f, "Ruin"),
+      Target::Resource(_) => write!(f, "Resource"),
+      Target::ConstructionSite(_) => write!(f, "ConstructionSite"),
+      Target::Creep(_) => write!(f, "Creep"),
+    }
+  }
+}
+
 impl Target {
   /// Downgrades to a TargetType for serialization
   pub fn downgrade(&self) -> SerializedTarget {
+    debug!("Downgrading Target");
     match self {
       Target::Source(obj) => {
         let id = obj.id().to_string();
@@ -134,11 +172,11 @@ impl Target {
       }
       Target::Resource(obj) => {
         let id = obj.id().to_string();
-        SerializedTarget::Source(id)
+        SerializedTarget::Resource(id)
       }
       Target::Creep(obj) => {
         let id = obj.id().to_string();
-        SerializedTarget::Source(id)
+        SerializedTarget::Creep(id)
       }
       Target::ConstructionSite(obj) => {
         let id = obj.id().to_string();
