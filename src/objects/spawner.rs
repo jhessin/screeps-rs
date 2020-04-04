@@ -197,20 +197,35 @@ impl Spawner {
       &specialists
     );
 
+    // Some info about resources
+    info!(
+      "{} of {} energy available for spawns",
+      self.room.energy_available(),
+      self.room.energy_capacity_available(),
+    );
+
+    info!(
+      "{} is required for mining",
+      Self::body_cost(&Role::miner().body().0),
+    );
+
     // spawn miners if possible
     if self.room.energy_available() >= miner_cost {
       self.set_min(Role::harvester(), 0);
       self.set_min(Role::lorry(), 1);
       // building miners
       debug!("Building miners");
-      // check each source and assign a miner to each one.
-      let sources: Vec<Source> = self
-        .room
-        .find(find::SOURCES)
-        .into_iter()
-        .filter(|s| !s.has_miner())
-        .collect();
+      // Get the number of sources in the room
+      let sources: Vec<Source> =
+        self.room.find(find::SOURCES).into_iter().collect();
+      // use that to set the min number of miners
+      self.set_min(Role::miner(), sources.len() as u32);
 
+      // Then find those that don't already have miners.
+      let sources: Vec<Source> =
+        sources.into_iter().filter(|s| !s.has_miner()).collect();
+
+      // assign miners.
       if !sources.is_empty() {
         let miner = Role::build_miner(sources[0].clone());
         return self.spawn(miner);

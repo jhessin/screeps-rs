@@ -1,6 +1,7 @@
 //! Wraps up a Creep and gives it superpowers!
-use crate::*;
 use screeps::ResourceType::Energy;
+
+use crate::*;
 
 const ROLE_KEY: &str = "role";
 
@@ -193,7 +194,6 @@ impl Creeper {
   pub fn harvest_energy(&mut self) -> ReturnCode {
     // find the nearest source if there isn't one already
     if let Some(Target::Source(_)) = self.data().source() {
-      ()
     } else {
       let sources = self.creep.room().find(find::SOURCES_ACTIVE);
       let sources: Vec<&Source> = sources.iter().collect();
