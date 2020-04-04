@@ -140,11 +140,11 @@ impl Spawner {
 
     let miners = Creeper::names_for_role(Role::miner());
     let harvesters = Creeper::names_for_role(Role::harvester());
+    let lorries = Creeper::names_for_role(Role::lorry());
     let builders = Creeper::names_for_role(Role::builder());
     let upgraders = Creeper::names_for_role(Role::upgrader());
     let repairers = Creeper::names_for_role(Role::repairer());
     let wall_repairers = Creeper::names_for_role(Role::wall_repairer());
-    let lorries = Creeper::names_for_role(Role::lorry());
     let specialists = Creeper::names_for_role(Role::specialist());
 
     // For debugging purposes output the creeps by name
@@ -159,6 +159,12 @@ impl Spawner {
       harvesters.len(),
       self.get_min(&Role::harvester()),
       &harvesters
+    );
+    info!(
+      "{} of {} Lorries: {:?}",
+      lorries.len(),
+      self.get_min(&Role::lorry()),
+      &lorries
     );
     info!(
       "{} of {} Builders: {:?}",
@@ -183,12 +189,6 @@ impl Spawner {
       wall_repairers.len(),
       self.get_min(&Role::wall_repairer()),
       &wall_repairers
-    );
-    info!(
-      "{} of {} Lorries: {:?}",
-      lorries.len(),
-      self.get_min(&Role::lorry()),
-      &lorries
     );
     info!(
       "{} of {} Specialists: {:?}",
@@ -235,10 +235,25 @@ impl Spawner {
     // spawn harvesters if necessary
     let role = Role::harvester();
     if harvesters.len() < self.get_min(&role) {
-      let result = self.spawn(role.clone());
+      let result = self.spawn(role);
       if result != ReturnCode::Ok && harvesters.is_empty() {
         if miners.is_empty() {
-          return self.emergency_spawn(role);
+          return self.emergency_spawn(Role::harvester());
+        } else if lorries.is_empty() {
+          return self.emergency_spawn(Role::lorry());
+        }
+      } else {
+        return result;
+      }
+    }
+
+    // spawn lorry if necessary
+    let role = Role::lorry();
+    if lorries.len() < self.get_min(&role) {
+      let result = self.spawn(role);
+      if result != ReturnCode::Ok && lorries.is_empty() {
+        if miners.is_empty() {
+          return self.emergency_spawn(Role::harvester());
         } else if lorries.is_empty() {
           return self.emergency_spawn(Role::lorry());
         }
@@ -268,12 +283,6 @@ impl Spawner {
     // spawn wall_repairer if necessary
     let role = Role::wall_repairer();
     if wall_repairers.len() < self.get_min(&role) {
-      return self.spawn(role);
-    }
-
-    // spawn lorry if necessary
-    let role = Role::lorry();
-    if lorries.len() < self.get_min(&role) {
       return self.spawn(role);
     }
 

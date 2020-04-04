@@ -70,6 +70,11 @@ impl Creeper {
   /// Is this creep working
   pub fn is_working(&self) -> bool {
     const WORKING: &str = "working";
+    if self.role == Role::miner() {
+      self.creep.memory().set(WORKING, false);
+      return false;
+    }
+
     let working = self.creep.memory().bool(WORKING);
 
     if working && self.creep.store_used_capacity(Some(Energy)) == 0 {
@@ -264,14 +269,16 @@ impl Creeper {
         _ => (),
       };
     }
+
     // Dropped Resources first
     let path = Finder::new(self.creep.clone());
-    let targets = self.creep.room().find(find::DROPPED_RESOURCES);
-    if !targets.is_empty() {
-      if let Some(target) =
-        path.find_nearest_of::<Resource>(targets.iter().collect())
+    let sources = self.creep.room().find(find::DROPPED_RESOURCES);
+    if !sources.is_empty() {
+      if let Some(source) =
+        path.find_nearest_of::<Resource>(sources.iter().collect())
       {
-        self.data().set_target(Target::Resource(target.clone()));
+        debug!("Resource found!");
+        self.data().set_source(Target::Resource(source.clone()));
         return self.pickup();
       }
     }
@@ -322,7 +329,7 @@ impl Creeper {
       }
     }
 
-    ReturnCode::NotFound
+    self.harvest_energy()
   }
 
   /// This will deliver the energy to the needed spots
@@ -565,6 +572,7 @@ impl Creeper {
     if let Some(Target::Resource(r)) = self.data().source() {
       self.handle_code(self.creep.pickup(&r), "Picking up resource")
     } else {
+      error!("Trying to pickup something that isn't a Resource");
       ReturnCode::InvalidTarget
     }
   }
