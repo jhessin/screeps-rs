@@ -119,6 +119,7 @@ impl SerializedTarget {
 }
 
 /// This is a full fledged target that can easily be used for different actions.
+#[derive(Clone)]
 pub enum Target {
   /// A source object
   Source(Source),

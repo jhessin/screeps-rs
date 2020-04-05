@@ -149,6 +149,15 @@ impl Role {
       ratio: None,
     })
   }
+
+  /// This builds a specialist that transfers resources
+  pub fn build_specialist(from: Target, to: Target) -> Self {
+    Role::Specialist(RoleData {
+      source_id: Some(from.downgrade()),
+      target_id: Some(to.downgrade()),
+      ratio: None,
+    })
+  }
 }
 
 /// Get generics of each variant
@@ -221,7 +230,7 @@ impl Role {
       Role::Builder(_) => (vec![Work, Carry, Move, Move], true),
       Role::Repairer(_) => (vec![Work, Carry, Move, Move], true),
       Role::WallRepairer(_) => (vec![Work, Carry, Move, Move], true),
-      Role::Lorry(_) => (vec![Carry, Carry, Move, Move], true),
+      Role::Lorry(_) => (vec![Carry, Move], true),
       Role::Specialist(_) => (vec![Carry, Carry, Move, Move], true),
     }
   }

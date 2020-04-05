@@ -337,6 +337,13 @@ impl Creeper {
     let targets: Vec<&Structure> = targets
       .iter()
       .filter(|s| {
+        match s {
+          Structure::Tower(_) => return false,
+          Structure::Extension(_) => return false,
+          Structure::Spawn(_) => return false,
+          Structure::PowerSpawn(_) => return false,
+          _ => (),
+        }
         if let Some(s) = s.as_has_store() {
           if s.store_used_capacity(Some(Energy)) > 0 {
             return true;
@@ -381,22 +388,6 @@ impl Creeper {
     }
 
     let path = Finder::new(self.creep.clone());
-    // extensions, spawns
-    let targets = self.creep.room().find(find::STRUCTURES);
-    let targets: Vec<&Structure> = targets
-      .iter()
-      .filter(|s| match s {
-        Structure::Extension(s) => s.store_free_capacity(Some(Energy)) > 0,
-        Structure::Spawn(s) => s.store_free_capacity(Some(Energy)) > 0,
-        _ => false,
-      })
-      .collect();
-    if !targets.is_empty() {
-      if let Some(target) = path.find_nearest_of(targets) {
-        self.data().set_target(Target::Structure(target.clone()));
-        return self.transfer();
-      }
-    }
 
     // towers
     let targets = self.creep.room().find(find::STRUCTURES);
@@ -421,6 +412,23 @@ impl Creeper {
         self
           .data()
           .set_target(Target::Structure(Structure::Tower(target.clone())));
+        return self.transfer();
+      }
+    }
+
+    // extensions, spawns
+    let targets = self.creep.room().find(find::STRUCTURES);
+    let targets: Vec<&Structure> = targets
+      .iter()
+      .filter(|s| match s {
+        Structure::Extension(s) => s.store_free_capacity(Some(Energy)) > 0,
+        Structure::Spawn(s) => s.store_free_capacity(Some(Energy)) > 0,
+        _ => false,
+      })
+      .collect();
+    if !targets.is_empty() {
+      if let Some(target) = path.find_nearest_of(targets) {
+        self.data().set_target(Target::Structure(target.clone()));
         return self.transfer();
       }
     }

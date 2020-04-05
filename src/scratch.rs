@@ -11,18 +11,23 @@
 /// - data() also remains if it isn't folded into the data model.
 /// - save() - may need a renew if modifying data model
 /// - handle_code() - TODO: rename to make more sense possibly: move_or()
+/// 
 /// ** Finder methods - TODO: attach to a trait for Vec<Target> or expand the existing Finder struct.
 ///   * These should make it easier to filter/build Vec<Target>'s
 ///   * They will all return Targets.
+///
 /// - find_nearest_work_energy()
 ///   * This is a super method that gets the closest energy source
 ///   * excluding spawns/extensions/sources
 ///   * includes lorries that are working.
+///
 /// - find_nearest_store_energy()
 ///   * This is a super method that gets the closest energy source for storage
 ///   * doesn't include buildings other than Ruins, Tombstones, and Containers
+///
 /// - find_nearest_active_source()
 ///   * Strictly for HARVESTERS
+///
 /// - find_nearest_dropped_resource()
 /// - find_nearest_tombstone()
 /// - find_nearest_ruin()
@@ -30,6 +35,9 @@
 ///   * Should return the nearest of any structure with stored energy that is not a
 ///     * spawn/extension/Tower that has stored energy
 ///   * May be refactored to exclude others when they are unlocked.
+///
+/// - find_nearest_storage()
+///   * This returns
 /// - find_nearest_tower_needing_energy()
 /// - find_nearest_spawn_extension_needing_energy()
 /// - find nearest_other_energy_target()
@@ -37,6 +45,11 @@
 /// - find_nearest_construction_site()
 /// - find_nearest_repair_target()
 /// - find_nearest_wall_repair_target()
+///
+///
+///
+///
+///
 /// ** Gather methods:
 ///   * These should all check to ensure is_working() returns false
 ///   * Should check for existing target for better performance.
@@ -45,6 +58,7 @@
 /// -- gather_storage() should gather resources for storage
 /// -- gather_work() should gather resources for work from containers, dropped, resources, etc.
 ///   * This can also pull from Storage, Links, etc.
+///
 /// ** Deliver methods:
 ///   * These should all check to ensure is_working() returns true
 /// -- deliver() should deliver resources by priority for storage/use.
