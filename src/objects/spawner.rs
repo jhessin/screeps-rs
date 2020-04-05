@@ -211,8 +211,6 @@ impl Spawner {
 
     // spawn miners if possible
     if self.room.energy_available() >= miner_cost {
-      self.set_min(Role::harvester(), 0);
-      self.set_min(Role::lorry(), 1);
       // building miners
       debug!("Building miners");
       // Get the number of sources in the room
@@ -223,7 +221,7 @@ impl Spawner {
 
       // Then find those that don't already have miners.
       let sources: Vec<Source> =
-        sources.into_iter().filter(|s| !s.has_miner()).collect();
+        sources.into_iter().filter(|s| !s.has_creep()).collect();
 
       // assign miners.
       if !sources.is_empty() {
@@ -232,34 +230,25 @@ impl Spawner {
       }
     }
 
+    // TODO move emergency spawn code here.
+    if harvesters.is_empty() && lorries.is_empty() {
+      return if miners.is_empty() {
+        self.emergency_spawn(Role::harvester())
+      } else {
+        self.emergency_spawn(Role::lorry())
+      };
+    }
+
     // spawn harvesters if necessary
     let role = Role::harvester();
     if harvesters.len() < self.get_min(&role) {
-      let result = self.spawn(role);
-      if result != ReturnCode::Ok && harvesters.is_empty() {
-        if miners.is_empty() {
-          return self.emergency_spawn(Role::harvester());
-        } else if lorries.is_empty() {
-          return self.emergency_spawn(Role::lorry());
-        }
-      } else {
-        return result;
-      }
+      return self.spawn(role);
     }
 
     // spawn lorry if necessary
     let role = Role::lorry();
     if lorries.len() < self.get_min(&role) {
-      let result = self.spawn(role);
-      if result != ReturnCode::Ok && lorries.is_empty() {
-        if miners.is_empty() {
-          return self.emergency_spawn(Role::harvester());
-        } else if lorries.is_empty() {
-          return self.emergency_spawn(Role::lorry());
-        }
-      } else {
-        return result;
-      }
+      return self.spawn(role);
     }
 
     // spawn upgraders if necessary
@@ -268,15 +257,15 @@ impl Spawner {
       return self.spawn(role);
     }
 
-    // spawn builder if necessary
-    let role = Role::builder();
-    if builders.len() < self.get_min(&role) {
-      return self.spawn(role);
-    }
-
     // spawn repairer if necessary
     let role = Role::repairer();
     if repairers.len() < self.get_min(&role) {
+      return self.spawn(role);
+    }
+
+    // spawn builder if necessary
+    let role = Role::builder();
+    if builders.len() < self.get_min(&role) {
       return self.spawn(role);
     }
 

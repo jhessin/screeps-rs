@@ -37,6 +37,7 @@ impl Display for SerializedTarget {
 
 impl SerializedTarget {
   /// Upgrades the TargetType to a full fledged Target
+  #[allow(clippy::cognitive_complexity)]
   pub fn upgrade(&self) -> Option<Target> {
     debug!("Upgrading Target");
     match self {

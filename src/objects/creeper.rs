@@ -13,6 +13,18 @@ pub struct Creeper {
   pub role: Role,
 }
 
+impl Display for Creeper {
+  fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    write!(
+      f,
+      "Creep: {}\nRole: {}\nworking: {}",
+      self.creep.name(),
+      self.role,
+      self.creep.memory().bool("working")
+    )
+  }
+}
+
 impl Creeper {
   /// Creates a new creeper given a creep.
   pub fn new(creep: Creep) -> Self {
@@ -367,29 +379,8 @@ impl Creeper {
         _ => (),
       };
     }
-    let path = Finder::new(self.creep.clone());
-    // towers
-    let targets = self.creep.room().find(find::STRUCTURES);
-    let targets: Vec<&StructureTower> = targets
-      .iter()
-      .filter_map(|s| {
-        if let Structure::Tower(t) = s {
-          if t.store_free_capacity(Some(Energy)) > 0 {
-            return Some(t);
-          }
-        }
-        None
-      })
-      .collect();
-    if !targets.is_empty() {
-      if let Some(target) = path.find_nearest_of(targets) {
-        self
-          .data()
-          .set_target(Target::Structure(Structure::Tower(target.clone())));
-        return self.transfer();
-      }
-    }
 
+    let path = Finder::new(self.creep.clone());
     // extensions, spawns
     let targets = self.creep.room().find(find::STRUCTURES);
     let targets: Vec<&Structure> = targets
@@ -403,6 +394,33 @@ impl Creeper {
     if !targets.is_empty() {
       if let Some(target) = path.find_nearest_of(targets) {
         self.data().set_target(Target::Structure(target.clone()));
+        return self.transfer();
+      }
+    }
+
+    // towers
+    let targets = self.creep.room().find(find::STRUCTURES);
+    let targets: Vec<&StructureTower> = targets
+      .iter()
+      .filter_map(|s| {
+        if let Structure::Tower(t) = s {
+          if t.store_free_capacity(Some(Energy)) > 0 {
+            info!(
+              "Found tower with {} of {} energy",
+              t.store_used_capacity(Some(Energy)),
+              t.store_capacity(Some(Energy))
+            );
+            return Some(t);
+          }
+        }
+        None
+      })
+      .collect();
+    if !targets.is_empty() {
+      if let Some(target) = path.find_nearest_of(targets) {
+        self
+          .data()
+          .set_target(Target::Structure(Structure::Tower(target.clone())));
         return self.transfer();
       }
     }
@@ -489,10 +507,11 @@ impl Creeper {
 
     // Check for existing target
     if let Some(Target::Structure(Structure::Wall(s))) = self.data().target() {
+      if s.hits() == 0 {}
       let hits = s.hits() as f64;
       let max = s.hits_max() as f64;
       // Check it is still below the threshold ratio.
-      if hits / max < ratio {
+      if s.hits() != 0 && hits / max < ratio {
         // valid pass on to repair task
         return self.repair();
       }
@@ -508,7 +527,9 @@ impl Creeper {
       .into_iter()
       .filter_map(|s| {
         if let Structure::Wall(wall) = s {
-          return Some(wall);
+          if wall.hits() != 0 {
+            return Some(wall);
+          }
         }
         None
       })

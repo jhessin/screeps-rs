@@ -20,6 +20,21 @@ pub fn game_loop() {
     manage_creep(creep);
   }
 
+  debug!("running towers");
+  for tower in screeps::game::structures::values().into_iter().filter_map(|s| {
+    if let Structure::Tower(t) = s {
+      Some(t)
+    } else {
+      None
+    }
+  }) {
+    if let Some(target) =
+      tower.pos().find_closest_by_range(find::HOSTILE_CREEPS)
+    {
+      tower.attack(&target);
+    }
+  }
+
   let time = screeps::game::time();
 
   if time % 32 == 3 {
