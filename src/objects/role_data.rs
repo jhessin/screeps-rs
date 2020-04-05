@@ -39,6 +39,11 @@ impl RoleData {
     self.source_id = Some(source.downgrade());
   }
 
+  /// Resets the source_id to None
+  pub fn reset_source(&mut self) {
+    self.source_id = None;
+  }
+
   /// This returns the target for a specialist, or a wall-repairer
   pub fn target(&mut self) -> Option<Target> {
     let result = match &self.target_id {
@@ -51,6 +56,11 @@ impl RoleData {
     }
 
     result
+  }
+
+  /// Resets the target_id to None
+  pub fn reset_target(&mut self) {
+    self.target_id = None;
   }
 
   /// Sets the target id from a specified structure.

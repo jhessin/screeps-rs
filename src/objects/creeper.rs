@@ -68,7 +68,7 @@ impl Creeper {
   }
 
   /// Is this creep working
-  pub fn is_working(&self) -> bool {
+  pub fn working(&mut self) -> bool {
     const WORKING: &str = "working";
     if self.role == Role::miner() {
       self.creep.memory().set(WORKING, false);
@@ -79,9 +79,11 @@ impl Creeper {
 
     if working && self.creep.store_used_capacity(Some(Energy)) == 0 {
       self.creep.memory().set(WORKING, false);
+      self.data().reset_source();
       false
     } else if !working && self.creep.store_free_capacity(Some(Energy)) == 0 {
       self.creep.memory().set(WORKING, true);
+      self.data().reset_target();
       true
     } else {
       working
@@ -90,7 +92,7 @@ impl Creeper {
 
   /// Runs the creep role
   pub fn run(&mut self) -> ReturnCode {
-    let working = self.is_working();
+    let working = self.working();
 
     let code = match self.role {
       Role::Harvester(_) => {
@@ -163,11 +165,8 @@ impl Creeper {
 
   /// A utility to handle traveling to a resource/target
   fn handle_code(&mut self, code: ReturnCode, msg: &'static str) -> ReturnCode {
-    let target = if self.is_working() {
-      self.data().target()
-    } else {
-      self.data().source()
-    };
+    let target =
+      if self.working() { self.data().target() } else { self.data().source() };
     let target = match target {
       Some(Target::Resource(target)) => target.pos(),
       Some(Target::Source(target)) => target.pos(),
@@ -216,58 +215,69 @@ impl Creeper {
   /// This gathers any loose energy it can find
   /// Every creep will use this except miner, or specialist
   pub fn gather_energy(&mut self) -> ReturnCode {
+    // TODO Note there was an error here.
     // prioritize targets
+    let mut object_destroyed = false;
+    for event in self.creep.room().get_event_log() {
+      if let EventType::ObjectDestroyed(_event) = event.event {
+        debug!("ObjectDestroyed event: {}", _event.object_type);
+        object_destroyed = true;
+        break;
+      }
+    }
     // check for existing target
     // Verify validity
-    if let Some(source) = self.data().source() {
-      match source {
-        Target::Source(s) => {
-          if s.energy() > 0 {
-            return self.mine();
+    if !object_destroyed {
+      if let Some(source) = self.data().source() {
+        match source {
+          Target::Source(s) => {
+            if s.energy() > 0 {
+              return self.mine();
+            }
           }
-        }
-        Target::Structure(s) => {
-          if let Some(s) = s.as_has_store() {
+          Target::Structure(s) => {
+            if let Some(s) = s.as_has_store() {
+              if s.store_used_capacity(Some(Energy)) > 0 {
+                return self.withdraw();
+              }
+            }
+          }
+          Target::Tombstone(s) => {
             if s.store_used_capacity(Some(Energy)) > 0 {
               return self.withdraw();
             }
           }
-        }
-        Target::Tombstone(s) => {
-          if s.store_used_capacity(Some(Energy)) > 0 {
-            return self.withdraw();
-          }
-        }
-        Target::Ruin(s) => {
-          if s.store_used_capacity(Some(Energy)) > 0 {
-            return self.withdraw();
-          }
-        }
-        Target::Resource(s) => {
-          if s.amount() > 0 {
-            return self.pickup();
-          }
-        }
-        Target::Creep(c) => {
-          let mut creeper = Creeper::new(c);
-          if creeper.creep.store_used_capacity(Some(Energy)) > 0
-            && creeper.is_working()
-          {
-            match creeper.role {
-              Role::Lorry(_) => {
-                creeper.data().set_target(Target::Creep(self.creep.clone()));
-                return ReturnCode::Ok;
-              }
-              Role::Harvester(_) => {
-                creeper.data().set_target(Target::Creep(self.creep.clone()));
-                return ReturnCode::Ok;
-              }
-              _ => (),
+          Target::Ruin(s) => {
+            if s.store_used_capacity(Some(Energy)) > 0 {
+              return self.withdraw();
             }
           }
-        }
-        _ => (),
-      };
+          Target::Resource(s) => {
+            if s.amount() > 0 {
+              return self.pickup();
+            }
+          }
+          Target::Creep(c) => {
+            let mut creeper = Creeper::new(c);
+            if creeper.creep.store_used_capacity(Some(Energy)) > 0
+              && creeper.working()
+            {
+              match creeper.role {
+                Role::Lorry(_) => {
+                  creeper.data().set_target(Target::Creep(self.creep.clone()));
+                  return ReturnCode::Ok;
+                }
+                Role::Harvester(_) => {
+                  creeper.data().set_target(Target::Creep(self.creep.clone()));
+                  return ReturnCode::Ok;
+                }
+                _ => (),
+              }
+            }
+          }
+          _ => (),
+        };
+      }
     }
 
     // Dropped Resources first
