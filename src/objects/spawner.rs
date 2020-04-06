@@ -230,7 +230,6 @@ impl Spawner {
       }
     }
 
-    // TODO move emergency spawn code here.
     if harvesters.is_empty() && lorries.is_empty() {
       return if miners.is_empty() {
         self.emergency_spawn(Role::harvester())
