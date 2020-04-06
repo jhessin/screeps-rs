@@ -274,6 +274,20 @@ impl Spawner {
       return self.spawn(role);
     }
 
+    // spawn the specialist if necessary
+    let source =
+      SerializedTarget::Structure("5e81b4c86b6db34870234bf5".to_string())
+        .upgrade()
+        .unwrap();
+    let target =
+      SerializedTarget::Structure("5e7e60d808a3a82de165f776".to_string())
+        .upgrade()
+        .unwrap();
+    let role = Role::build_specialist(source, target);
+    if specialists.len() < self.get_min(&role) {
+      return self.spawn(role);
+    }
+
     ReturnCode::Full
   }
 }

@@ -35,6 +35,19 @@ pub fn game_loop() {
     }
   }
 
+  debug!("running links");
+  let input_link =
+    ObjectId::<StructureLink>::from_str("5e817dc804fdaeb94a9e8e82")
+      .unwrap()
+      .resolve()
+      .unwrap();
+  let output_link =
+    ObjectId::<StructureLink>::from_str("5e81b4c86b6db34870234bf5")
+      .unwrap()
+      .resolve()
+      .unwrap();
+  input_link.transfer_energy(&output_link, None);
+
   let time = screeps::game::time();
 
   if time % 32 == 3 {
@@ -62,6 +75,6 @@ fn manage_spawn(spawn: StructureSpawn) {
 
 fn manage_creep(creep: Creep) {
   let mut creep = Creeper::new(creep);
-
+  time_hack(format!("Running creep: {}", creep.creep.name()).as_str());
   creep.run();
 }

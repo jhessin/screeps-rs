@@ -98,13 +98,29 @@ impl Creeper {
 
     let working = self.creep.memory().bool(WORKING);
 
+    // special case for specialists
+    if self.role == Role::specialist() {
+      if let Some(Target::Structure(Structure::Link(source))) =
+        self.data().source()
+      {
+        if !working && source.store_used_capacity(Some(Energy)) == 0 {
+          self.creep.memory().set(WORKING, true);
+          return true;
+        }
+      }
+    }
+
     if working && self.creep.store_used_capacity(Some(Energy)) == 0 {
       self.creep.memory().set(WORKING, false);
-      self.data().reset_source();
+      if self.role != Role::specialist() {
+        self.data().reset_source();
+      }
       false
     } else if !working && self.creep.store_free_capacity(Some(Energy)) == 0 {
       self.creep.memory().set(WORKING, true);
-      self.data().reset_target();
+      if self.role != Role::specialist() {
+        self.data().reset_target();
+      }
       true
     } else {
       working
@@ -405,7 +421,9 @@ impl Creeper {
 
   /// gather_work() should gather resources for work
   pub fn gather_work(&mut self) -> ReturnCode {
-    self.data().validate_gather_source();
+    if self.role != Role::specialist() {
+      self.data().validate_gather_source();
+    }
 
     let target = if let Some(t) = self.data().source() {
       t
@@ -481,7 +499,9 @@ impl Creeper {
 impl Creeper {
   /// Deliver - should deliver resources by priority for storage/use.
   pub fn deliver(&mut self) -> ReturnCode {
-    self.data().validate_deliver_target();
+    if self.role != Role::specialist() {
+      self.data().validate_deliver_target();
+    }
 
     let target = if let Some(t) = self.data().target() {
       t
@@ -643,10 +663,19 @@ impl Creeper {
 
     // get the room controller
     let target = if let Some(t) = self.data().target() {
-      t
+      if let Target::Structure(Structure::Controller(_)) = &t {
+        t
+      } else {
+        let target = self.creep.room().controller().unwrap();
+        let target = Target::Structure(Structure::Controller(target));
+        self.data().set_target(&target);
+        target
+      }
     } else {
       let target = self.creep.room().controller().unwrap();
-      Target::Structure(Structure::Controller(target))
+      let target = Target::Structure(Structure::Controller(target));
+      self.data().set_target(&target);
+      target
     };
 
     if let Target::Structure(Structure::Controller(c)) = target {

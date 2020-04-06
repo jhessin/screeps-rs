@@ -62,17 +62,13 @@ impl Finder {
     let mut targets: Vec<Target> = vec![];
 
     // Lorries that are working
-    if let Some(t) = self.find_nearest_working_lorry() {
-      targets.push(t);
-    }
+    // if let Some(t) = self.find_nearest_working_lorry() {
+    //   targets.push(t);
+    // }
 
     // Dropped Resources
     if let Some(t) = self.find_nearest_dropped_resource() {
       targets.push(t);
-    }
-
-    if !targets.is_empty() {
-      return self.find_nearest(targets);
     }
 
     // Tombstones
@@ -80,27 +76,19 @@ impl Finder {
       targets.push(t);
     }
 
-    if !targets.is_empty() {
-      return self.find_nearest(targets);
-    }
-
     // Ruins
     if let Some(t) = self.find_nearest_ruin() {
       targets.push(t);
     }
 
-    if !targets.is_empty() {
-      return self.find_nearest(targets);
-    }
+    // if !targets.is_empty() {
+    //   return self.find_nearest(targets);
+    // }
 
     // From any structure
     // other than Towers/Spawns/Extensions
     if let Some(t) = self.find_nearest_other_energy_source() {
       targets.push(t);
-    }
-
-    if !targets.is_empty() {
-      return self.find_nearest(targets);
     }
 
     self.find_nearest(targets)
@@ -112,17 +100,13 @@ impl Finder {
     let mut targets: Vec<Target> = vec![];
 
     // Other working lorries
-    if let Some(t) = self.find_nearest_working_lorry() {
-      targets.push(t);
-    }
+    // if let Some(t) = self.find_nearest_working_lorry() {
+    //   targets.push(t);
+    // }
 
     // dropped resources
     if let Some(t) = self.find_nearest_dropped_resource() {
       targets.push(t);
-    }
-
-    if !targets.is_empty() {
-      return self.find_nearest(targets);
     }
 
     // Tombstones
@@ -130,17 +114,9 @@ impl Finder {
       targets.push(t);
     }
 
-    if !targets.is_empty() {
-      return self.find_nearest(targets);
-    }
-
     // Ruins
     if let Some(t) = self.find_nearest_ruin() {
       targets.push(t);
-    }
-
-    if !targets.is_empty() {
-      return self.find_nearest(targets);
     }
 
     // Containers
@@ -261,9 +237,9 @@ impl Finder {
     let mut targets: Vec<Target> = vec![];
 
     // this should include dropped resources, ruins, and tombstones
-    if let Some(t) = self.find_nearest_working_lorry() {
-      targets.push(t);
-    }
+    // if let Some(t) = self.find_nearest_working_lorry() {
+    //   targets.push(t);
+    // }
 
     if let Some(t) = self.find_nearest_dropped_resource() {
       targets.push(t);
@@ -309,7 +285,9 @@ impl Finder {
     let mut targets: Vec<Target> = vec![];
 
     for r in self.room.find(find::DROPPED_RESOURCES) {
-      targets.push(Target::Resource(r));
+      if !r.has_creep() {
+        targets.push(Target::Resource(r));
+      }
     }
 
     self.find_nearest(targets)
@@ -360,13 +338,13 @@ impl Finder {
       }
     }
 
-    for c in self.room.find(find::MY_CREEPS) {
-      let mut creep = Creeper::new(c);
-
-      if !creep.working() && creep.role != Role::miner() {
-        targets.push(Target::Creep(creep.creep));
-      }
-    }
+    // for c in self.room.find(find::MY_CREEPS) {
+    //   let mut creep = Creeper::new(c);
+    //
+    //   if !creep.working() && creep.role != Role::miner() {
+    //     targets.push(Target::Creep(creep.creep));
+    //   }
+    // }
 
     self.find_nearest(targets)
   }
@@ -430,6 +408,9 @@ impl Finder {
     let mut targets: Vec<Target> = vec![];
 
     for t in self.room.find(find::STRUCTURES) {
+      if let Structure::Wall(_) = t {
+        continue;
+      }
       if let Some(s) = t.as_attackable() {
         if s.hits() < s.hits_max() {
           targets.push(Target::Structure(t));
