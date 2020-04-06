@@ -438,6 +438,38 @@ impl Finder {
     self.find_nearest(targets)
   }
 
+  /// Finds the most damaged wall
+  pub fn find_most_damaged_wall(&self) -> Option<Target> {
+    let mut walls: Vec<StructureWall> = self
+      .room
+      .find(find::STRUCTURES)
+      .into_iter()
+      .filter_map(|s| {
+        if let Structure::Wall(wall) = s {
+          if wall.hits() > 0 && wall.hits() < wall.hits_max() {
+            return Some(wall);
+          }
+        }
+        None
+      })
+      .collect();
+
+    if walls.is_empty() {
+      return None;
+    }
+
+    let mut most_damaged = walls.pop().unwrap();
+
+    while !walls.is_empty() {
+      let next = walls.pop().unwrap();
+      if next.hits() < most_damaged.hits() {
+        most_damaged = next;
+      }
+    }
+
+    Some(Target::Structure(Structure::Wall(most_damaged)))
+  }
+
   /// Returns true if there are any repairable walls
   pub fn has_repairable_walls(&self) -> bool {
     let walls: Vec<Structure> = self

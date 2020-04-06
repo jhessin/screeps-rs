@@ -218,6 +218,8 @@ impl Creeper {
     if code == ReturnCode::NotInRange {
       self.creep.move_to(&target);
       code
+    } else if code == ReturnCode::NotEnough && self.role == Role::specialist() {
+      code
     } else if code != ReturnCode::Ok {
       error!(
         "{} is having trouble with {}: code: {:?}",
@@ -601,48 +603,14 @@ impl Creeper {
   pub fn repair_wall(&mut self) -> ReturnCode {
     self.data().validate_repair_target();
 
-    let mut ratio = if let Some(r) = self.data().ratio {
-      r
-    } else {
-      self.data().ratio = Some(0.0001);
-      0.001
-    };
-
-    if !self.finder.has_repairable_walls() {
-      // No walls to repair try
-      return self.repair();
-    }
-
     let target = if let Some(t) = self.data().target() {
-      if let Target::Structure(Structure::Wall(w)) = &t {
-        let hits = w.hits() as f64;
-        let max = w.hits_max() as f64;
-        if hits / max < ratio {
-          Some(t)
-        } else {
-          None
-        }
-      } else {
-        None
-      }
-    } else {
-      None
-    };
-
-    let target = if let Some(t) = target {
+      t
+    } else if let Some(t) = self.finder.find_most_damaged_wall() {
+      self.data().set_target(&t);
       t
     } else {
-      loop {
-        if let Some(t) = self.finder.find_nearest_wall_repair_target(ratio) {
-          self.data().set_target(&t);
-          break t;
-        } else {
-          ratio += 0.001;
-          if (ratio - 1.0).abs() < 0.0001 {
-            return ReturnCode::NotFound;
-          }
-        }
-      }
+      // fallback -> repair
+      return self.repair();
     };
 
     if let Target::Structure(s) = target {
