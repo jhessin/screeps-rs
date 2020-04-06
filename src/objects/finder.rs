@@ -1,6 +1,5 @@
 //! Easy path finding tool it wraps up the position of a thing
 //! then provides tools to find the nearest other thing.
-//! TODO put this in a trait for Vec<Target>
 
 use screeps::ResourceType::Energy;
 
@@ -23,30 +22,6 @@ impl Finder {
     let room = pos.room();
     let origin = pos.pos();
     Finder { origin, room }
-  }
-
-  /// Returns the nearest from a provided array.
-  /// TODO DEPRECATED use find_nearest()
-  pub fn find_nearest_of<'a, T>(&self, targets: Vec<&'a T>) -> Option<&'a T>
-  where
-    T: RoomObjectProperties + ?Sized,
-  {
-    if targets.is_empty() {
-      return None;
-    }
-
-    let mut nearest = *targets.get(0).unwrap();
-    let mut nearest_cost = std::u32::MAX;
-
-    for target in targets {
-      let result =
-        search(&self.origin, target, std::u32::MAX, SearchOptions::default());
-      if !result.incomplete && result.cost < nearest_cost {
-        nearest_cost = result.cost;
-        nearest = target;
-      }
-    }
-    Some(nearest)
   }
 
   /// This finds the nearest Target object.
@@ -86,9 +61,8 @@ impl Finder {
   pub fn find_nearest_energy_for_work(&self) -> Option<Target> {
     let mut targets: Vec<Target> = vec![];
 
-    // From any structure
-    // other than Towers/Spawns/Extensions
-    if let Some(t) = self.find_nearest_other_energy_source() {
+    // Lorries that are working
+    if let Some(t) = self.find_nearest_working_lorry() {
       targets.push(t);
     }
 
@@ -97,9 +71,8 @@ impl Finder {
       targets.push(t);
     }
 
-    // Ruins
-    if let Some(t) = self.find_nearest_ruin() {
-      targets.push(t);
+    if !targets.is_empty() {
+      return self.find_nearest(targets);
     }
 
     // Tombstones
@@ -107,9 +80,27 @@ impl Finder {
       targets.push(t);
     }
 
-    // Lorries that are working
-    if let Some(t) = self.find_nearest_working_lorry() {
+    if !targets.is_empty() {
+      return self.find_nearest(targets);
+    }
+
+    // Ruins
+    if let Some(t) = self.find_nearest_ruin() {
       targets.push(t);
+    }
+
+    if !targets.is_empty() {
+      return self.find_nearest(targets);
+    }
+
+    // From any structure
+    // other than Towers/Spawns/Extensions
+    if let Some(t) = self.find_nearest_other_energy_source() {
+      targets.push(t);
+    }
+
+    if !targets.is_empty() {
+      return self.find_nearest(targets);
     }
 
     self.find_nearest(targets)
@@ -120,14 +111,18 @@ impl Finder {
   pub fn find_nearest_energy_to_store(&self) -> Option<Target> {
     let mut targets: Vec<Target> = vec![];
 
+    // Other working lorries
+    if let Some(t) = self.find_nearest_working_lorry() {
+      targets.push(t);
+    }
+
     // dropped resources
     if let Some(t) = self.find_nearest_dropped_resource() {
       targets.push(t);
     }
 
-    // Ruins
-    if let Some(t) = self.find_nearest_ruin() {
-      targets.push(t);
+    if !targets.is_empty() {
+      return self.find_nearest(targets);
     }
 
     // Tombstones
@@ -135,26 +130,67 @@ impl Finder {
       targets.push(t);
     }
 
-    // Containers
-    if let Some(t) = self.find_nearest_container_with_energy() {
+    if !targets.is_empty() {
+      return self.find_nearest(targets);
+    }
+
+    // Ruins
+    if let Some(t) = self.find_nearest_ruin() {
       targets.push(t);
     }
 
-    // Other working lorries
-    if let Some(t) = self.find_nearest_working_lorry() {
+    if !targets.is_empty() {
+      return self.find_nearest(targets);
+    }
+
+    // Containers
+    if let Some(t) = self.find_nearest_container_with_energy() {
       targets.push(t);
     }
 
     self.find_nearest(targets)
   }
 
-  /// Find working lorries
+  /// Find the nearest energy target
+  /// This is strictly for lorries
+  pub fn find_nearest_energy_target(&self) -> Option<Target> {
+    let mut targets = vec![];
+
+    if let Some(t) = self.find_nearest_spawn_extension_needing_energy() {
+      targets.push(t);
+    }
+    if let Some(t) = self.find_nearest_tower_needing_energy() {
+      targets.push(t);
+    }
+
+    if !targets.is_empty() {
+      return self.find_nearest(targets);
+    }
+
+    if let Some(t) = self.find_nearest_storage() {
+      targets.push(t);
+    }
+
+    if !targets.is_empty() {
+      return self.find_nearest(targets);
+    }
+
+    if let Some(t) = self.find_nearest_other_energy_target() {
+      targets.push(t);
+    }
+
+    self.find_nearest(targets)
+  }
+
+  /// Find working lorries (or harvesters)
   pub fn find_nearest_working_lorry(&self) -> Option<Target> {
     let mut targets = vec![];
 
     for c in self.room.find(find::MY_CREEPS) {
       let mut creep = Creeper::new(c.clone());
-      if creep.working() && creep.role == Role::lorry() {
+      if creep.working()
+        && (creep.role == Role::lorry() || creep.role == Role::harvester())
+      {
         targets.push(Target::Creep(c));
       }
     }
@@ -186,6 +222,25 @@ impl Finder {
     self.find_nearest(targets)
   }
 
+  /// Returns the nearest energy target
+  pub fn find_nearest_other_energy_target(&self) -> Option<Target> {
+    let mut targets = vec![];
+
+    for s in self.room.find(find::STRUCTURES) {
+      if let Structure::Container(_) = s {
+        continue;
+      }
+
+      if let Some(store) = s.as_has_store() {
+        if store.store_free_capacity(Some(Energy)) > 0 {
+          targets.push(Target::Structure(s));
+        }
+      }
+    }
+
+    self.find_nearest(targets)
+  }
+
   /// find the nearest container with energy
   pub fn find_nearest_container_with_energy(&self) -> Option<Target> {
     let mut targets = vec![];
@@ -204,6 +259,43 @@ impl Finder {
   /// Strictly for HARVESTERS - find the nearest active source
   pub fn find_nearest_active_source(&self) -> Option<Target> {
     let mut targets: Vec<Target> = vec![];
+
+    // this should include dropped resources, ruins, and tombstones
+    if let Some(t) = self.find_nearest_working_lorry() {
+      targets.push(t);
+    }
+
+    if let Some(t) = self.find_nearest_dropped_resource() {
+      targets.push(t);
+    }
+
+    if !targets.is_empty() {
+      return self.find_nearest(targets);
+    }
+
+    if let Some(t) = self.find_nearest_tombstone() {
+      targets.push(t);
+    }
+
+    if !targets.is_empty() {
+      return self.find_nearest(targets);
+    }
+
+    if let Some(t) = self.find_nearest_ruin() {
+      targets.push(t);
+    }
+
+    if !targets.is_empty() {
+      return self.find_nearest(targets);
+    }
+
+    if let Some(t) = self.find_nearest_container_with_energy() {
+      targets.push(t);
+    }
+
+    if !targets.is_empty() {
+      return self.find_nearest(targets);
+    }
 
     for s in self.room.find(find::SOURCES_ACTIVE) {
       targets.push(Target::Source(s));
@@ -271,7 +363,7 @@ impl Finder {
     for c in self.room.find(find::MY_CREEPS) {
       let mut creep = Creeper::new(c);
 
-      if !creep.working() {
+      if !creep.working() && creep.role != Role::miner() {
         targets.push(Target::Creep(creep.creep));
       }
     }
@@ -363,5 +455,23 @@ impl Finder {
     }
 
     self.find_nearest(targets)
+  }
+
+  /// Returns true if there are any repairable walls
+  pub fn has_repairable_walls(&self) -> bool {
+    let walls: Vec<Structure> = self
+      .room
+      .find(find::STRUCTURES)
+      .into_iter()
+      .filter(|s| {
+        if let Structure::Wall(wall) = s {
+          wall.hits() < wall.hits_max()
+        } else {
+          false
+        }
+      })
+      .collect();
+
+    !walls.is_empty()
   }
 }
