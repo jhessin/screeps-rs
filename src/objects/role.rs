@@ -27,6 +27,8 @@ pub enum Role {
   /// Ferries resources between two specific locations.
   /// fallback: -> Repair -> Upgrader
   Specialist(RoleData),
+  /// This is a claimer to claim new rooms
+  Claimer(RoleData),
 }
 
 impl PartialEq for Role {
@@ -88,6 +90,13 @@ impl PartialEq for Role {
           false
         }
       }
+      Role::Claimer(_) => {
+        if let Role::Claimer(_) = other {
+          true
+        } else {
+          false
+        }
+      }
     }
   }
 }
@@ -105,6 +114,7 @@ impl Display for Role {
       Role::WallRepairer(_) => write!(f, "{}", WALL_REPAIRER),
       Role::Lorry(_) => write!(f, "{}", LORRY),
       Role::Specialist(_) => write!(f, "{}", SPECIALIST),
+      Role::Claimer(_) => write!(f, "{}", CLAIMER),
     }
   }
 }
@@ -147,6 +157,7 @@ impl Role {
       source_id: Some(source),
       target_id: target,
       ratio: None,
+      target_room: None,
     })
   }
 
@@ -156,11 +167,25 @@ impl Role {
       source_id: Some(from.downgrade()),
       target_id: Some(to.downgrade()),
       ratio: None,
+      target_room: None,
     })
+  }
+
+  /// This builds a claimer for a given controllerId
+  pub fn build_claimer(room: &str) -> Self {
+    let data = RoleData {
+      source_id: None,
+      target_id: None,
+      ratio: None,
+      target_room: Some(room.to_string()),
+    };
+
+    Role::Claimer(data)
   }
 }
 
 /// Get generics of each variant
+/// TODO replace or supplement these with is_* methods on objects
 impl Role {
   /// A generic harvester
   pub fn harvester() -> Self {
@@ -201,6 +226,11 @@ impl Role {
   pub fn specialist() -> Self {
     Role::Specialist(RoleData::default())
   }
+
+  /// A generic claimer
+  pub fn claimer() -> Self {
+    Role::Claimer(RoleData::default())
+  }
 }
 
 /// General helper methods
@@ -232,6 +262,7 @@ impl Role {
       Role::WallRepairer(_) => (vec![Work, Carry, Move, Move], true),
       Role::Lorry(_) => (vec![Carry, Move], true),
       Role::Specialist(_) => (vec![Carry, Carry, Move, Move], true),
+      Role::Claimer(_) => (vec![Claim, Move], false),
     }
   }
 }

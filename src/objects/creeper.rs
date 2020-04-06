@@ -1,5 +1,6 @@
 //! Wraps up a Creep and gives it superpowers!
 use screeps::ResourceType::Energy;
+use screeps::RoomName;
 
 use crate::*;
 
@@ -61,6 +62,7 @@ impl Creeper {
       Role::WallRepairer(d) => d,
       Role::Lorry(d) => d,
       Role::Specialist(d) => d,
+      Role::Claimer(d) => d,
     }
   }
 
@@ -91,9 +93,14 @@ impl Creeper {
   /// This also updates the working state of our creep.
   pub fn working(&mut self) -> bool {
     const WORKING: &str = "working";
+    // special rule for miners
     if self.role == Role::miner() {
-      self.creep.memory().set(WORKING, false);
       return false;
+    }
+
+    // special rule for claimers
+    if self.role == Role::claimer() {
+      return true;
     }
 
     let working = self.creep.memory().bool(WORKING);
@@ -182,6 +189,7 @@ impl Creeper {
           self.gather_work()
         }
       }
+      Role::Claimer(_) => self.claim(),
     };
 
     match self.save() {
@@ -653,5 +661,36 @@ impl Creeper {
       self.data().reset_target();
       ReturnCode::InvalidTarget
     }
+  }
+
+  /// Claim the targeted RoomController
+  pub fn claim(&mut self) -> ReturnCode {
+    // TODO Get this danged thing to work!
+    if let Some(room) = &self.data().target_room {
+      if let Ok(room) = RoomName::from_str(&room) {
+        if self.creep.room().name() != room {
+          let exit = self.creep.room().find(find::Exit::bottom());
+          let exit = exit[0];
+          // let exit = self
+          //   .creep
+          //   .pos()
+          //   .find_closest_by_range(find::Exit::from(exit))
+          //   .unwrap();
+          return self.creep.move_to(&exit);
+        } else {
+          // we are in the right room
+          let controller = self.creep.room().controller().unwrap();
+          return self.move_to_or(
+            self.creep.claim_controller(&controller),
+            "Claiming controller",
+          );
+        }
+      } else {
+        error!("Couldn't parse RoomName from: {}", room);
+      }
+    } else {
+      error!("Claimer has no target room");
+    }
+    ReturnCode::InvalidTarget
   }
 }

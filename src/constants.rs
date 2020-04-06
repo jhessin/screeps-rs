@@ -41,3 +41,5 @@ pub const WALL_REPAIRER: &str = "wallRepairer";
 pub const LORRY: &str = "lorry";
 /// specialist key
 pub const SPECIALIST: &str = "specialist";
+/// Claimer key
+pub const CLAIMER: &str = "claimer";

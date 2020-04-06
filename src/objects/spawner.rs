@@ -146,6 +146,7 @@ impl Spawner {
     let repairers = Creeper::names_for_role(Role::repairer());
     let wall_repairers = Creeper::names_for_role(Role::wall_repairer());
     let specialists = Creeper::names_for_role(Role::specialist());
+    let claimers = Creeper::names_for_role(Role::claimer());
 
     // For debugging purposes output the creeps by name
     info!(
@@ -196,6 +197,7 @@ impl Spawner {
       self.get_min(&Role::specialist()),
       &specialists
     );
+    info!("{} Claimers: {:?}", claimers.len(), &claimers,);
 
     // Some info about resources
     info!(
@@ -230,6 +232,7 @@ impl Spawner {
       }
     }
 
+    // emergency spawn if necessary
     if harvesters.is_empty() && lorries.is_empty() {
       return if miners.is_empty() {
         self.emergency_spawn(Role::harvester())
@@ -248,6 +251,15 @@ impl Spawner {
     let role = Role::lorry();
     if lorries.len() < self.get_min(&role) {
       return self.spawn(role);
+    }
+
+    // spawn claimers if needed
+    if let Ok(Some(id)) = self.spawn.memory().string("claim") {
+      let claimer = Role::build_claimer(id.as_str());
+      if self.spawn(claimer) == ReturnCode::Ok {
+        self.spawn.memory().del("claim");
+        return ReturnCode::Ok;
+      }
     }
 
     // spawn upgraders if necessary

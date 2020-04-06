@@ -12,11 +12,18 @@ pub struct RoleData {
   pub target_id: Option<SerializedTarget>,
   /// This is a ratio that a wall repairer will use to cut back on cpu
   pub ratio: Option<f64>,
+  /// This is strictly for the claimer - the room we are claiming
+  pub target_room: Option<String>,
 }
 
 impl Default for RoleData {
   fn default() -> Self {
-    RoleData { source_id: None, target_id: None, ratio: None }
+    RoleData {
+      source_id: None,
+      target_id: None,
+      ratio: None,
+      target_room: None,
+    }
   }
 }
 
