@@ -1,14 +1,18 @@
 default_deploy_mode = "upload"
 
 [upload]
-username = "your username or email"
-password = "your password"
-branch = "default"
-# ptr = false
+# official server config
+#auth_token = "YOUR TOKEN"
 
-# hostname = "screeps.com"
-# ssl = true
-# port = 443
+# Private server config
+username = "YOUR_EMAIL"
+password = "YOUR_PASSWORD"
+hostname = "server1.screepspl.us"
+
+# Common config
+branch = "default"
+ssl = true
+port = 443
 
 # hostname = "localhost"
 # ssl = false
