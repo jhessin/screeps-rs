@@ -75,6 +75,6 @@ fn manage_spawn(spawn: StructureSpawn) {
 
 fn manage_creep(creep: Creep) {
   let mut creep = Creeper::new(creep);
-  time_hack(format!("Running creep: {}", creep.creep.name()).as_str());
+  // time_hack(format!("Running creep: {}", creep.creep.name()).as_str());
   creep.run();
 }
