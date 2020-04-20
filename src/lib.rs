@@ -25,20 +25,24 @@ pub use serde_json::{from_str, to_string};
 /// If we want to use js
 pub use stdweb::js;
 
-/// My modules
-pub use constants::*;
+pub use enums::*;
 pub use game_loop::*;
 pub use init::*;
 pub use memory::*;
+/// My modules
+pub use names::*;
 pub use objects::*;
+pub use rooms::*;
 pub use traits::*;
 
 /// access the logging module
 pub mod logging;
 
-mod constants;
+mod enums;
 mod game_loop;
 mod init;
 mod memory;
+mod names;
 mod objects;
+mod rooms;
 mod traits;

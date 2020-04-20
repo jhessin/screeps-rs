@@ -7,29 +7,15 @@ pub trait HasCreep {
   fn has_creep(&self) -> bool;
 }
 
-impl HasCreep for Source {
+impl<T: HasId + RoomObjectProperties> HasCreep for T {
   fn has_creep(&self) -> bool {
-    for creep in game::creeps::values() {
+    for creep in self.room().find(find::MY_CREEPS) as Vec<Creep> {
       let mut creep = Creeper::new(creep);
       if creep.role == Role::miner() {
         if let Some(Target::Source(source)) = creep.data().source() {
-          if source.id() == self.id() {
+          if source.id().to_string() == self.id().to_string() {
             return true;
           }
-        }
-      }
-    }
-    false
-  }
-}
-
-impl HasCreep for Resource {
-  fn has_creep(&self) -> bool {
-    for creep in game::creeps::values() {
-      let mut creep = Creeper::new(creep);
-      if let Some(Target::Resource(source)) = creep.data().source() {
-        if source.id() == self.id() && !creep.working() {
-          return true;
         }
       }
     }
