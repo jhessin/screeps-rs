@@ -1,5 +1,7 @@
 use crate::*;
 
+const ROOM_SIZE: u32 = 79;
+
 /// All variants that hold a transferable RoomObject
 pub enum TransferTarget {
   /// Structures
@@ -138,11 +140,22 @@ impl Finder for Position {
     nearest
   }
 
-  fn find_repair_target(&self) -> Option<Structure> {
-    todo!()
+  fn find_build_target(&self) -> Option<ConstructionSite> {
+    let targets: Vec<Target> = self
+      .find_in_range(find::CONSTRUCTION_SITES, ROOM_SIZE)
+      .into_iter()
+      .map(|s| Target::ConstructionSite(s))
+      .collect();
+
+    if let Some(Target::ConstructionSite(target)) =
+      self.find_closest_by_path(targets)
+    {
+      return Some(target);
+    }
+    None
   }
 
-  fn find_build_target(&self) -> Option<ConstructionSite> {
+  fn find_repair_target(&self) -> Option<Structure> {
     todo!()
   }
 
@@ -161,7 +174,50 @@ impl Finder for Position {
   }
 
   fn find_dismantle_target(&self) -> Option<Structure> {
-    todo!()
+    const DISMANTLE_PATH: &str = "dismantle";
+
+    // First add targets using flags
+    if let Some(flag) = game::flags::get(DISMANTLE_PATH) {
+      if let Some(s) = flag.pos().find_in_range(find::STRUCTURES, 0).get(0)
+        as Option<Structure>
+      {
+        let mut arr = if let Ok(Some(arr)) =
+          screeps::memory::root().path_arr(DISMANTLE_PATH)
+        {
+          arr as Vec<String>
+        } else {
+          vec![]
+        };
+        arr.push(s.id().to_string())
+        screeps::memory::root().path_set(DISMANTLE_PATH, arr);
+      }
+    }
+
+    // Get the closest target
+    let mut targets: Vec<Target> = vec![];
+    if let Some(mut target_ids) =
+      screeps::memory::root().path_arr(DISMANTLE_PATH) as Option<Vec<String>>
+    {
+      for id in target_ids {
+        if let Ok(target) = ObjectId::<Structure>::from_str(id) {
+          if let Some(target) = target.resolve() {
+            if !target.has_creep() {
+              targets.push(Target::Structure(target));
+            }
+          }
+        } else {
+          // invalid target remove from memory
+          target_ids.remove(id.parse().unwrap());
+          screeps::memory::root().path_set(DISMANTLE_PATH, target_ids.clone());
+        }
+      }
+    }
+
+    if let Some(Target::Structure(target)) = self.find_closest_by_path(targets)
+    {
+      return Some(target);
+    }
+    None
   }
 
   fn find_harvest_target(
@@ -193,7 +249,23 @@ impl Finder for Position {
   }
 
   fn find_claim_target(&self) -> Option<StructureController> {
-    todo!()
+    for room in game::rooms::values() {
+      if let Some(ctrl) = room.controller() as Option<StructureController> {
+        if !ctrl.my() && !ctrl.has_owner() {
+          if let Some(res) = ctrl.reservation() {
+            // TODO find a better way to do this
+            if res.username
+              == game::spawns::get("Spawn1").unwrap().owner_name().unwrap()
+            {
+              return Some(ctrl);
+            }
+          } else {
+            return Some(ctrl);
+          }
+        }
+      }
+    }
+    None
   }
 
   fn find_reserve_target(&self) -> Option<StructureController> {
