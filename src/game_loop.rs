@@ -9,20 +9,6 @@ pub fn game_loop() {
     manage_room(room);
   }
 
-  debug!("running towers");
-  for tower in screeps::game::structures::values().into_iter().filter_map(|s| {
-    if let Structure::Tower(t) = s {
-      Some(t)
-    } else {
-      None
-    }
-  }) {
-    tower.run();
-  }
-
-  debug!("running links");
-  // TODO Run links here
-
   let time = screeps::game::time();
 
   if time % 32 == 3 {

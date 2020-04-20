@@ -18,7 +18,7 @@ pub trait CreepActions {
   /// - to avoid conflicts we will start them with go_*
 
   /// Attack
-  fn go_attack(&self, target: &Creep) -> ReturnCode;
+  fn go_attack<T: Attackable + HasId>(&self, target: &T) -> ReturnCode;
 
   /// Attack Controller
   fn go_attack_controller(&self, target: &StructureController) -> ReturnCode;
@@ -103,7 +103,7 @@ impl CreepActions for Creep {
     code
   }
 
-  fn go_attack(&self, target: &Creep) -> ReturnCode {
+  fn go_attack<T: Attackable + HasId>(&self, target: &T) -> ReturnCode {
     self.memory().set_value(Values::Action(Actions::Attack));
     let code = self.attack(target);
     return self.travel_or_report(code, target);
