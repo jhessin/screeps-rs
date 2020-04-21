@@ -123,6 +123,10 @@ impl SerializedTarget {
 pub enum Target {
   /// A source object
   Source(Source),
+  /// A mineral object
+  Mineral(Mineral),
+  /// A Deposit
+  Deposit(Deposit),
   /// A Structure
   Structure(Structure),
   /// A Tombstone
@@ -135,6 +139,10 @@ pub enum Target {
   ConstructionSite(ConstructionSite),
   /// A Creep
   Creep(Creep),
+  /// A Power Creep
+  PowerCreep(PowerCreep),
+  /// A simple flag
+  Flag(Flag),
 }
 
 impl Display for Target {
