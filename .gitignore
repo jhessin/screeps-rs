@@ -28,7 +28,6 @@ Thumbs.db
 #################
 .classpath
 .externalToolBuilders
-.idea
 .project
 .settings
 nbproject

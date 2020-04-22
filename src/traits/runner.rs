@@ -39,8 +39,9 @@ impl Runner for Structure {
           return ReturnCode::Ok;
         }
 
-        let mut others: Vec<StructureLink> = link
-          .room()
+        let room = link.room().expect("All links should have a room");
+
+        let mut others: Vec<StructureLink> = room
           .find(find::STRUCTURES)
           .into_iter()
           .filter_map(|s| {
@@ -83,6 +84,14 @@ impl Runner for Structure {
       Structure::Tower(tower) => {
         if let Some(target) =
           tower.pos().find_closest_by_range(find::HOSTILE_CREEPS)
+        {
+          tower.attack(&target)
+        } else if let Some(target) =
+          tower.pos().find_closest_by_range(find::HOSTILE_POWER_CREEPS)
+        {
+          tower.attack(&target)
+        } else if let Some(target) =
+          tower.pos().find_closest_by_range(find::HOSTILE_STRUCTURES)
         {
           tower.attack(&target)
         } else {

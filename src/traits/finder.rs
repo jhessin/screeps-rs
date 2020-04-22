@@ -1,5 +1,7 @@
 use crate::*;
 use screeps::Part::Move;
+use screeps::StructureType;
+use stdweb::ReferenceType;
 
 const ROOM_SIZE: u32 = 79;
 
@@ -20,7 +22,10 @@ pub trait Finder {
   /// A wall repair target
   fn find_wall_repair_target(&self) -> Option<Structure>;
   /// A build target
-  fn find_build_target(&self) -> Option<ConstructionSite>;
+  fn find_build_target(
+    &self,
+    structure_type: Option<StructureType>,
+  ) -> Option<ConstructionSite>;
   /// A transferable target we should fill up first
   fn find_transfer_target_primary(
     &self,
@@ -36,20 +41,20 @@ pub trait Finder {
   /// A target to dismantle
   fn find_dismantle_target(&self) -> Option<Structure>;
   /// A harvest target
-  fn find_harvest_target(
+  fn find_harvest_target<T: Harvestable + ReferenceType>(
     &self,
     resource: Option<ResourceType>,
-  ) -> Option<Reference>;
+  ) -> Option<T>;
   /// A pickup target
   fn find_pickup_target(
     &self,
     resource: Option<ResourceType>,
   ) -> Option<Resource>;
   /// A withdraw target we should pull from first
-  fn find_withdraw_target_primary(
+  fn find_withdraw_target_primary<T: Withdrawable + ReferenceType>(
     &self,
     resource: Option<ResourceType>,
-  ) -> Option<Reference>;
+  ) -> Option<T>;
   /// A withdraw target we should only pull from last
   fn find_withdraw_target_secondary(
     &self,
@@ -64,14 +69,14 @@ pub trait Finder {
 
   /// Things that require Attack or Ranged Attack part
   /// Attacking
-  fn find_attack_target(&self) -> Option<Reference>;
+  fn find_attack_target<T: Attackable + ReferenceType>(&self) -> Option<T>;
   /// Should we use a ranged_mass_attack?
   fn should_mass_attack(&self) -> bool;
   /// Find a good rally position
-  fn find_rally_point(&self) -> Option<Reference>;
+  fn find_rally_point(&self) -> Option<RoomObject>;
 
   /// Things that require a heal part
-  fn find_heal_target(&self) -> Option<Reference>;
+  fn find_heal_target<T: Attackable + ReferenceType>(&self) -> Option<T>;
 
   /// Other things
   fn find_pull_target(&self) -> Option<Creep>;
@@ -112,7 +117,12 @@ impl Finder for Position {
       .find(find::MY_STRUCTURES)
       .into_iter()
       .filter_map(|s| {
-        let s = s.as_structure();
+        let s = s.as_structure() as Structure;
+        // Do not repair walls or ramparts
+        match s {
+          Structure::Wall(_) | Structure::Rampart(_) => return None,
+          _ => (),
+        }
         if let Some(atk) = s.as_attackable() {
           if atk.hits() < atk.hits_max() {
             return Some(s);
@@ -157,9 +167,24 @@ impl Finder for Position {
     Some(target)
   }
 
-  fn find_build_target(&self) -> Option<ConstructionSite> {
-    let targets: Vec<ConstructionSite> =
-      self.find_in_range(find::CONSTRUCTION_SITES, ROOM_SIZE);
+  fn find_build_target(
+    &self,
+    structure_type: Option<StructureType>,
+  ) -> Option<ConstructionSite> {
+    let targets: Vec<ConstructionSite> = self
+      .find(find::CONSTRUCTION_SITES)
+      .into_iter()
+      .filter(|s| {
+        if let Some(s_type) = structure_type {
+          // looking for a particular structure
+          s.structure_type() == s_type
+        } else {
+          // Do not build walls or ramparts - wall repairer should do that.
+          s.structure_type() != StructureType::Rampart
+            && s.structure_type() != StructureType::Wall
+        }
+      })
+      .collect();
 
     if let Some(target) = self.find_closest_by_path(targets) {
       return Some(target);
@@ -257,10 +282,10 @@ impl Finder for Position {
     self.find_closest_by_path(targets)
   }
 
-  fn find_harvest_target(
+  fn find_harvest_target<T: Harvestable + ReferenceType>(
     &self,
     resource: Option<ResourceType>,
-  ) -> Option<Reference> {
+  ) -> Option<T> {
     match resource {
       Some(ResourceType::Energy) => {
         let sources: Vec<RoomObject> = self
@@ -275,7 +300,7 @@ impl Finder for Position {
           })
           .collect();
         if let Some(target) = self.find_closest_by_path(sources) {
-          Some(target.as_ref().clone())
+          target.as_ref().clone().downcast()
         } else {
           None
         }
@@ -301,7 +326,7 @@ impl Finder for Position {
         }
 
         if let Some(target) = self.find_closest_by_path(targets) {
-          Some(target.as_ref().clone())
+          target.as_ref().clone().downcast()
         } else {
           None
         }
@@ -336,7 +361,7 @@ impl Finder for Position {
         }
 
         if let Some(target) = self.find_closest_by_path(targets) {
-          Some(target.as_ref().clone())
+          target.as_ref().clone().downcast()
         } else {
           None
         }
@@ -369,10 +394,10 @@ impl Finder for Position {
     }
   }
 
-  fn find_withdraw_target_primary(
+  fn find_withdraw_target_primary<T: Withdrawable + ReferenceType>(
     &self,
     resource: Option<ResourceType>,
-  ) -> Option<Reference> {
+  ) -> Option<T> {
     let mut targets: Vec<RoomObject> = self
       .find(find::TOMBSTONES)
       .into_iter()
@@ -416,7 +441,7 @@ impl Finder for Position {
     }
 
     if let Some(target) = self.find_closest_by_path(targets) {
-      Some(target.as_ref().clone())
+      target.as_ref().clone().downcast()
     } else {
       None
     }
@@ -493,7 +518,7 @@ impl Finder for Position {
     None
   }
 
-  fn find_attack_target(&self) -> Option<Reference> {
+  fn find_attack_target<T: Attackable + ReferenceType>(&self) -> Option<T> {
     let mut targets = self
       .find(find::HOSTILE_CREEPS)
       .into_iter()
@@ -515,7 +540,7 @@ impl Finder for Position {
     }
 
     if let Some(target) = self.find_closest_by_path(targets) {
-      Some(target.as_ref().clone())
+      target.as_ref().clone().downcast()
     } else {
       None
     }
@@ -528,7 +553,7 @@ impl Finder for Position {
       > 1
   }
 
-  fn find_rally_point(&self) -> Option<Reference> {
+  fn find_rally_point(&self) -> Option<RoomObject> {
     let ramparts: Vec<StructureRampart> = self
       .find(find::MY_STRUCTURES)
       .into_iter()
@@ -542,17 +567,17 @@ impl Finder for Position {
       .collect();
 
     if let Some(target) = self.find_closest_by_path(ramparts) {
-      return Some(target.as_ref().clone());
+      return target.as_ref().clone().downcast();
     }
 
     if let Some(flag) = game::flags::get("rally") {
-      return Some(flag.as_ref().clone());
+      return flag.as_ref().clone().downcast();
     }
 
     None
   }
 
-  fn find_heal_target(&self) -> Option<Reference> {
+  fn find_heal_target<T: Attackable + ReferenceType>(&self) -> Option<T> {
     let mut targets = self
       .find(find::MY_CREEPS)
       .into_iter()
@@ -566,18 +591,22 @@ impl Finder for Position {
       })
       .collect::<Vec<RoomObject>>();
 
-    // Power creeps don't work for some reason
-    for structure in self.find(find::STRUCTURES) {
-      if let Some(s) = structure.as_attackable() {
-        if s.hits() < s.hits_max() && !structure.has_creep() {
-          if let Some(s) = structure.as_ref().clone().downcast() {
-            targets.push(s)
-          }
+    for creep in self.find(find::MY_POWER_CREEPS) {
+      if creep.hits() < creep.hits_max() && !creep.has_creep() {
+        if let Some(s) = creep.as_ref().clone().downcast() {
+          targets.push(s)
         }
       }
     }
+
     if let Some(target) = self.find_closest_by_path(targets) {
-      Some(target.as_ref().clone())
+      Some(
+        target
+          .as_ref()
+          .clone()
+          .downcast()
+          .expect("Heal targets should be attackable"),
+      )
     } else {
       None
     }

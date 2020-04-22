@@ -9,7 +9,8 @@ pub trait HasCreep {
 
 impl<T: HasId + RoomObjectProperties> HasCreep for T {
   fn has_creep(&self) -> bool {
-    for creep in self.room().find(find::MY_CREEPS) as Vec<Creep> {
+    let room = if let Some(r) = self.room() { r } else { return false };
+    for creep in room.find(find::MY_CREEPS) as Vec<Creep> {
       if let Some(Values::TargetId(id)) =
         creep.memory().get_value(Keys::TargetId)
       {
