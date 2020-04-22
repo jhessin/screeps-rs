@@ -1,0 +1,5 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="watch" type="CARGO_WATCH_CONFIGURATION" factoryName="Cargo Watch configuration factory">
+    <method v="2" />
+  </configuration>
+</component>
