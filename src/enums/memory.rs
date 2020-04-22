@@ -11,6 +11,8 @@ pub enum Keys {
   Resource,
   /// The key for the role of the creep
   Role,
+  /// The key for holding the username
+  Username,
 }
 
 /// A wrapper for the appropriate values
@@ -23,20 +25,22 @@ pub enum Values {
   Resource(ResourceType),
   /// The Value for the Role
   Role(Role),
+  /// Username
+  Username(String),
 }
 
 /// Shortcuts for setting values in memory
 pub trait ValueSet {
   /// Sets the value using the appropriate keys
-  fn set_value(&self, value: Values);
+  fn set_value(self, value: Values) -> Self;
   /// gets the value given the appropriate key
   fn get_value(&self, key: Keys) -> Option<Values>;
   /// Deletes the value at the specified key location
-  fn rm_value(&self, key: Keys);
+  fn rm_value(&self, key: Keys) -> bool;
 }
 
 impl ValueSet for MemoryReference {
-  fn set_value(&self, value: Values) {
+  fn set_value(self, value: Values) -> Self {
     match value {
       Values::Action(d) => self.set(
         &to_string(&Keys::Action).expect("Invalid Key"),
@@ -53,7 +57,11 @@ impl ValueSet for MemoryReference {
         &to_string(&Keys::Role).expect("Invalid Key"),
         to_string(&d).expect("Invalid Role string"),
       ),
+      Values::Username(d) => {
+        self.set(&to_string(&Keys::Username).expect("Invalid Key"), d)
+      }
     }
+    self
   }
 
   fn get_value(&self, key: Keys) -> Option<Values> {
@@ -81,13 +89,17 @@ impl ValueSet for MemoryReference {
           return Some(Values::Role(role));
         }
       }
+      Keys::Username => return Some(Values::Username(result_str)),
     }
     None
   }
 
-  fn rm_value(&self, key: Keys) {
+  fn rm_value(&self, key: Keys) -> bool {
     if let Ok(key) = to_string(&key) {
       self.del(&key);
+      true
+    } else {
+      false
     }
   }
 }

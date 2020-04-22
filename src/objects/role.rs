@@ -58,4 +58,9 @@ impl Role {
       Role::Claimer => (vec![Claim, Move], false),
     }
   }
+
+  /// This works the role
+  pub fn run(&self, creep: &Creep) -> ReturnCode {
+    todo!("Run each role here")
+  }
 }

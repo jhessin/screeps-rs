@@ -17,18 +17,20 @@ pub trait Finder {
   /// These methods use up energy
   /// A repair target
   fn find_repair_target(&self) -> Option<Structure>;
+  /// A wall repair target
+  fn find_wall_repair_target(&self) -> Option<Structure>;
   /// A build target
   fn find_build_target(&self) -> Option<ConstructionSite>;
   /// A transferable target we should fill up first
   fn find_transfer_target_primary(
     &self,
     resource: Option<ResourceType>,
-  ) -> Option<Reference>;
+  ) -> Option<Structure>;
   /// A transferable target we should fill up last
   fn find_transfer_target_secondary(
     &self,
     resource: Option<ResourceType>,
-  ) -> Option<Reference>;
+  ) -> Option<Structure>;
 
   /// These things give us energy or other resources
   /// A target to dismantle
@@ -52,7 +54,7 @@ pub trait Finder {
   fn find_withdraw_target_secondary(
     &self,
     resource: Option<ResourceType>,
-  ) -> Option<Reference>;
+  ) -> Option<Structure>;
 
   /// Things that require a Claim part
   /// Claiming of course
@@ -106,7 +108,53 @@ impl Finder for Position {
   }
 
   fn find_repair_target(&self) -> Option<Structure> {
-    todo!("repair_target")
+    let targets: Vec<Structure> = self
+      .find(find::MY_STRUCTURES)
+      .into_iter()
+      .filter_map(|s| {
+        let s = s.as_structure();
+        if let Some(atk) = s.as_attackable() {
+          if atk.hits() < atk.hits_max() {
+            return Some(s);
+          }
+        }
+        None
+      })
+      .collect();
+
+    self.find_closest_by_path(targets)
+  }
+
+  fn find_wall_repair_target(&self) -> Option<Structure> {
+    let mut walls: Vec<Structure> = self
+      .find(find::STRUCTURES)
+      .into_iter()
+      .filter(|s| match s {
+        Structure::Wall(_) | Structure::Rampart(_) => {
+          let attack = s.as_attackable().unwrap();
+          attack.hits() < attack.hits_max()
+        }
+        _ => false,
+      })
+      .collect();
+
+    // check if there are no walls
+    if walls.is_empty() {
+      return None;
+    }
+
+    let mut target = walls.pop().unwrap();
+
+    while walls.len() > 0 {
+      let next = walls.pop().unwrap();
+      if next.as_attackable().unwrap().hits()
+        < target.as_attackable().unwrap().hits()
+      {
+        target = next;
+      }
+    }
+
+    Some(target)
   }
 
   fn find_build_target(&self) -> Option<ConstructionSite> {
@@ -122,15 +170,50 @@ impl Finder for Position {
   fn find_transfer_target_primary(
     &self,
     resource: Option<ResourceType>,
-  ) -> Option<Reference> {
-    todo!("transfer_primary")
+  ) -> Option<Structure> {
+    let targets: Vec<Structure> = self
+      .find(find::MY_STRUCTURES)
+      .into_iter()
+      .filter_map(|s| {
+        let s = s.as_structure() as Structure;
+        match s {
+          Structure::Spawn(_)
+          | Structure::Extension(_)
+          | Structure::Tower(_) => {
+            if let Some(store) = s.as_has_store() {
+              if store.store_free_capacity(resource) > 0 {
+                return Some(s);
+              }
+            }
+          }
+          _ => return None,
+        }
+        None
+      })
+      .collect();
+
+    self.find_closest_by_path(targets)
   }
 
   fn find_transfer_target_secondary(
     &self,
     resource: Option<ResourceType>,
-  ) -> Option<Reference> {
-    todo!("transfer_secondary")
+  ) -> Option<Structure> {
+    let targets: Vec<Structure> = self
+      .find(find::MY_STRUCTURES)
+      .into_iter()
+      .filter_map(|s| {
+        let s = s.as_structure() as Structure;
+        if let Some(store) = s.as_has_store() {
+          if store.store_free_capacity(resource) > 0 {
+            return Some(s);
+          }
+        }
+        None
+      })
+      .collect();
+
+    self.find_closest_by_path(targets)
   }
 
   fn find_dismantle_target(&self) -> Option<Structure> {
@@ -290,14 +373,79 @@ impl Finder for Position {
     &self,
     resource: Option<ResourceType>,
   ) -> Option<Reference> {
-    todo!("withdraw_primary")
+    let mut targets: Vec<RoomObject> = self
+      .find(find::TOMBSTONES)
+      .into_iter()
+      .filter_map(|s| {
+        let s = s as Tombstone;
+        if s.has_creep() {
+          return None;
+        }
+        if s.store_used_capacity(resource) > 0 {
+          if let Some(s) = s.as_ref().clone().downcast() {
+            return Some(s);
+          }
+        }
+        None
+      })
+      .collect();
+
+    for target in self.find(find::RUINS) as Vec<Ruin> {
+      if target.has_creep() {
+        continue;
+      }
+      if target.has_creep() {
+        continue;
+      }
+      if target.store_used_capacity(resource) > 0 {
+        if let Some(s) = target.as_ref().clone().downcast() {
+          targets.push(s);
+        }
+      }
+    }
+
+    for container in self.find(find::STRUCTURES) as Vec<Structure> {
+      if container.has_creep() {
+        continue;
+      }
+      if let Structure::Container(c) = container {
+        if let Some(s) = c.as_ref().clone().downcast() {
+          targets.push(s);
+        }
+      }
+    }
+
+    if let Some(target) = self.find_closest_by_path(targets) {
+      Some(target.as_ref().clone())
+    } else {
+      None
+    }
   }
 
   fn find_withdraw_target_secondary(
     &self,
     resource: Option<ResourceType>,
-  ) -> Option<Reference> {
-    todo!("withdraw_secondary")
+  ) -> Option<Structure> {
+    let targets: Vec<Structure> = self
+      .find(find::MY_STRUCTURES)
+      .into_iter()
+      .filter_map(|s| {
+        let s = s.as_structure() as Structure;
+        match s {
+          Structure::Link(_) | Structure::Storage(_) => {
+            if let Some(store) = s.as_has_store() {
+              if store.store_used_capacity(resource) > 0 {
+                return Some(s);
+              }
+            }
+            None
+          }
+          _ => None,
+        }
+      })
+      .collect();
+
+    self.find_closest_by_path(targets)
   }
 
   fn find_claim_target(&self) -> Option<StructureController> {
@@ -305,11 +453,12 @@ impl Finder for Position {
       if let Some(ctrl) = room.controller() as Option<StructureController> {
         if !ctrl.my() && !ctrl.has_owner() {
           if let Some(res) = ctrl.reservation() {
-            // TODO find a better way to do this
-            if res.username
-              == game::spawns::get("Spawn1").unwrap().owner_name().unwrap()
+            if let Some(Values::Username(username)) =
+              screeps::memory::root().get_value(Keys::Username)
             {
-              return Some(ctrl);
+              if res.username == username {
+                return Some(ctrl);
+              }
             }
           } else {
             return Some(ctrl);
@@ -321,7 +470,27 @@ impl Finder for Position {
   }
 
   fn find_reserve_target(&self) -> Option<StructureController> {
-    todo!("reserve_target")
+    let username = if let Some(Values::Username(u)) =
+      screeps::memory::root().get_value(Keys::Username)
+    {
+      u
+    } else {
+      panic!("Username not found in memory!")
+    };
+    for room in game::rooms::values() {
+      if let Some(ctrl) = room.controller() as Option<StructureController> {
+        if ctrl.my() {
+          return None;
+        }
+        if ctrl.owner_name().is_none() {
+          if let Some(res) = ctrl.reservation() {
+            return if res.username == username { Some(ctrl) } else { None };
+          }
+          return Some(ctrl);
+        }
+      }
+    }
+    None
   }
 
   fn find_attack_target(&self) -> Option<Reference> {
@@ -360,7 +529,27 @@ impl Finder for Position {
   }
 
   fn find_rally_point(&self) -> Option<Reference> {
-    todo!("rally_target")
+    let ramparts: Vec<StructureRampart> = self
+      .find(find::MY_STRUCTURES)
+      .into_iter()
+      .filter_map(|s| {
+        let s = s.as_structure() as Structure;
+        if let Structure::Rampart(s) = s {
+          return if s.has_creep() { None } else { Some(s) };
+        }
+        None
+      })
+      .collect();
+
+    if let Some(target) = self.find_closest_by_path(ramparts) {
+      return Some(target.as_ref().clone());
+    }
+
+    if let Some(flag) = game::flags::get("rally") {
+      return Some(flag.as_ref().clone());
+    }
+
+    None
   }
 
   fn find_heal_target(&self) -> Option<Reference> {
@@ -410,6 +599,69 @@ impl Finder for Position {
   }
 
   fn find_sign_target(&self) -> Option<StructureController> {
-    todo!("sign_target")
+    let username = if let Some(Values::Username(u)) =
+      screeps::memory::root().get_value(Keys::Username)
+    {
+      u
+    } else {
+      panic!("Username not found in memory!")
+    };
+    for room in game::rooms::values() {
+      if let Some(ctrl) = room.controller() as Option<StructureController> {
+        if let Some(sign) = ctrl.sign() {
+          if sign.username == username {
+            // Don't resign
+            return None;
+          }
+          if ctrl.my() {
+            // Sign it if it's yours.
+            return Some(ctrl);
+          }
+          if !ctrl.has_owner() && ctrl.reservation().is_none() {
+            // Sign it if it isn't owned or reserved
+            return Some(ctrl);
+          }
+          if let Some(res) = ctrl.reservation() {
+            if res.username == username {
+              return Some(ctrl);
+            }
+          }
+        }
+      }
+    }
+    None
+  }
+}
+
+/// This is used on a room to make finding creeps with a particular role easier.
+pub trait CreepFinder {
+  /// Return all the creeps in a room with a particular role
+  fn creeps_with_role(&self, role: Role) -> Vec<Creep>;
+
+  /// Return all the creeps without a role
+  fn idle_creeps(&self) -> Vec<Creep>;
+}
+
+impl CreepFinder for Room {
+  fn creeps_with_role(&self, role: Role) -> Vec<Creep> {
+    self
+      .find(find::MY_CREEPS)
+      .into_iter()
+      .filter(|s| {
+        if let Some(Values::Role(r)) = s.memory().get_value(Keys::Role) {
+          r == role
+        } else {
+          false
+        }
+      })
+      .collect()
+  }
+
+  fn idle_creeps(&self) -> Vec<Creep> {
+    self
+      .find(find::MY_CREEPS)
+      .into_iter()
+      .filter(|s| s.memory().get_value(Keys::Role).is_none())
+      .collect()
   }
 }

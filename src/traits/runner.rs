@@ -8,8 +8,17 @@ pub trait Runner {
 
 impl Runner for Creep {
   fn run(&self) -> ReturnCode {
+    if self.spawning() {
+      return ReturnCode::Busy;
+    }
+
     // time_hack(format!("Running creep: {}", creep.creep.name()).as_str());
-    todo!("Run creep here")
+    if let Some(Values::Role(role)) = self.memory().get_value(Keys::Role) {
+      return role.run(self);
+    }
+
+    // INVALID ROLE!
+    ReturnCode::Tired
   }
 }
 
@@ -24,7 +33,43 @@ impl Runner for Structure {
       Structure::InvaderCore(_) => ReturnCode::Ok,
       Structure::KeeperLair(_) => ReturnCode::Ok,
       Structure::Lab(_) => ReturnCode::Ok,
-      Structure::Link(_) => todo!("Run Link Here"),
+      Structure::Link(link) => {
+        if link.store_free_capacity(None) > 0 {
+          // Don't worry about links that aren't full
+          return ReturnCode::Ok;
+        }
+
+        let mut others: Vec<StructureLink> = link
+          .room()
+          .find(find::STRUCTURES)
+          .into_iter()
+          .filter_map(|s| {
+            if s.id().to_string() == link.id().to_string() {
+              None
+            } else {
+              if let Structure::Link(l) = s {
+                Some(l)
+              } else {
+                None
+              }
+            }
+          })
+          .collect();
+
+        if others.len() == 0 {
+          return ReturnCode::Ok;
+        }
+        let mut target = others.pop().unwrap();
+
+        while !others.is_empty() {
+          let next = others.pop().unwrap();
+          if next.store_used_capacity(None) < target.store_used_capacity(None) {
+            target = next;
+          }
+        }
+        let amount = link.store_used_capacity(None) / 2;
+        link.transfer_energy(&target, Some(amount))
+      }
       Structure::Nuker(_) => ReturnCode::Ok,
       Structure::Observer(_) => ReturnCode::Ok,
       Structure::PowerBank(_) => ReturnCode::Ok,
