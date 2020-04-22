@@ -9,6 +9,8 @@ pub enum Keys {
   TargetId,
   /// The resource that the creep is dealing in.
   Resource,
+  /// The key for the role of the creep
+  Role,
 }
 
 /// A wrapper for the appropriate values
@@ -19,6 +21,8 @@ pub enum Values {
   TargetId(String),
   /// The resource the creep is dealing with
   Resource(ResourceType),
+  /// The Value for the Role
+  Role(Role),
 }
 
 /// Shortcuts for setting values in memory
@@ -45,6 +49,10 @@ impl ValueSet for MemoryReference {
         &to_string(&Keys::Resource).expect("Invalid Key"),
         to_string(&d).expect("Invalid resource type"),
       ),
+      Values::Role(d) => self.set(
+        &to_string(&Keys::Role).expect("Invalid Key"),
+        to_string(&d).expect("Invalid Role string"),
+      ),
     }
   }
 
@@ -66,6 +74,11 @@ impl ValueSet for MemoryReference {
       Keys::Resource => {
         if let Ok(resource) = from_str::<ResourceType>(&result_str) {
           return Some(Values::Resource(resource));
+        }
+      }
+      Keys::Role => {
+        if let Ok(role) = from_str::<Role>(&result_str) {
+          return Some(Values::Role(role));
         }
       }
     }

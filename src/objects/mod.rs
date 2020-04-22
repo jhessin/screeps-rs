@@ -11,6 +11,5 @@ pub use target::*;
 mod creeper;
 mod finder;
 mod role;
-mod role_data;
 mod spawner;
 mod target;

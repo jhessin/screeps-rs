@@ -17,6 +17,7 @@ pub use screeps::{
   objects::*,
   pathfinder::{search, SearchOptions},
   prelude::*,
+  traits::TryFrom,
   ObjectId, Part, Position, RawObjectId, ResourceType, ReturnCode,
   RoomObjectProperties,
 };

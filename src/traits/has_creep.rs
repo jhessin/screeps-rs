@@ -11,7 +11,7 @@ impl<T: HasId + RoomObjectProperties> HasCreep for T {
   fn has_creep(&self) -> bool {
     for creep in self.room().find(find::MY_CREEPS) as Vec<Creep> {
       let mut creep = Creeper::new(creep);
-      if creep.role == Role::miner() {
+      if creep.role == Role::Miner {
         if let Some(Target::Source(source)) = creep.data().source() {
           if source.id().to_string() == self.id().to_string() {
             return true;

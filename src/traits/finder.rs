@@ -1,4 +1,3 @@
-use crate::Keys::TargetId;
 use crate::*;
 use screeps::Part::Move;
 
@@ -10,8 +9,6 @@ pub enum TransferTarget {
   Structure(Structure),
   /// Creeps
   Creep(Creep),
-  /// PowerCreeps
-  PowerCreep(PowerCreep),
 }
 
 impl TransferTarget {
@@ -19,15 +16,13 @@ impl TransferTarget {
     match self {
       TransferTarget::Structure(t) => Target::Structure(t),
       TransferTarget::Creep(t) => Target::Creep(t),
-      TransferTarget::PowerCreep(t) => Target::PowerCreep(t),
     }
   }
 
   pub fn as_transferable(&self) -> Option<&dyn Transferable> {
     match self {
       TransferTarget::Structure(t) => t.as_transferable(),
-      TransferTarget::Creep(t) => t,
-      TransferTarget::PowerCreep(t) => t,
+      TransferTarget::Creep(t) => Some(t as &dyn Transferable),
     }
   }
 }
@@ -54,8 +49,8 @@ impl WithdrawTarget {
   pub fn as_withdrawable(&self) -> Option<&dyn Withdrawable> {
     match self {
       WithdrawTarget::Structure(t) => t.as_withdrawable(),
-      WithdrawTarget::Tombstone(t) => t,
-      WithdrawTarget::Ruin(t) => t,
+      WithdrawTarget::Tombstone(t) => Some(t as &dyn Withdrawable),
+      WithdrawTarget::Ruin(t) => Some(t as &dyn Withdrawable),
     }
   }
 }
@@ -93,7 +88,6 @@ impl Target {
     match self {
       Target::Structure(t) => Some(TransferTarget::Structure(t)),
       Target::Creep(t) => Some(TransferTarget::Creep(t)),
-      Target::PowerCreep(t) => Some(TransferTarget::PowerCreep(t)),
       _ => None,
     }
   }
@@ -146,6 +140,9 @@ impl RallyTarget {
 
 /// This is the finder trait for implementing methods on the Position type
 pub trait Finder {
+  /// This simply finds anything in the room
+  fn find<T: find::FindConstant>(&self, c: T) -> Vec<T::Item>;
+
   /// This is the missing method from typescript
   fn find_closest_by_path(&self, targets: Vec<Target>) -> Option<Target>;
 
@@ -213,6 +210,10 @@ pub trait Finder {
 }
 
 impl Finder for Position {
+  fn find<T: find::FindConstant>(&self, c: T) -> Vec<T::Item> {
+    self.find_in_range(c, ROOM_SIZE)
+  }
+
   fn find_closest_by_path(&self, targets: Vec<Target>) -> Option<Target> {
     if targets.is_empty() {
       return None;
@@ -247,7 +248,7 @@ impl Finder for Position {
   }
 
   fn find_repair_target(&self) -> Option<Structure> {
-    todo!()
+    todo!("repair_target")
   }
 
   fn find_build_target(&self) -> Option<ConstructionSite> {
@@ -269,14 +270,14 @@ impl Finder for Position {
     &self,
     resource: Option<ResourceType>,
   ) -> Option<TransferTarget> {
-    todo!()
+    todo!("transfer_primary")
   }
 
   fn find_transfer_target_secondary(
     &self,
     resource: Option<ResourceType>,
   ) -> Option<TransferTarget> {
-    todo!()
+    todo!("transfer_secondary")
   }
 
   fn find_dismantle_target(&self) -> Option<Structure> {
@@ -284,9 +285,7 @@ impl Finder for Position {
 
     // First add targets using flags
     if let Some(flag) = game::flags::get(DISMANTLE_PATH) {
-      if let Some(s) = flag.pos().find_in_range(find::STRUCTURES, 0).get(0)
-        as Option<Structure>
-      {
+      if let Some(s) = flag.pos().find_in_range(find::STRUCTURES, 0).get(0) {
         let mut arr = if let Ok(Some(arr)) =
           screeps::memory::root().path_arr(DISMANTLE_PATH)
         {
@@ -301,10 +300,10 @@ impl Finder for Position {
 
     // Get the closest target
     let mut targets: Vec<Target> = vec![];
-    if let Some(mut target_ids) =
-      screeps::memory::root().path_arr(DISMANTLE_PATH) as Option<Vec<String>>
+    if let Ok(Some(mut target_ids)) =
+      screeps::memory::root().path_arr::<String>(DISMANTLE_PATH)
     {
-      for id in target_ids {
+      for id in target_ids.clone() {
         if let Ok(target) = ObjectId::<Structure>::from_str(&id) {
           if let Some(target) = target.resolve() {
             if !target.has_creep() {
@@ -330,10 +329,9 @@ impl Finder for Position {
     &self,
     resource: Option<ResourceType>,
   ) -> Option<HarvestTarget> {
-    let room = game::rooms::get(self.room_name()).unwrap();
     match resource {
       Some(ResourceType::Energy) => {
-        let sources: Vec<Target> = room
+        let sources: Vec<Target> = self
           .find(find::SOURCES_ACTIVE)
           .into_iter()
           .filter_map(|s| {
@@ -351,18 +349,18 @@ impl Finder for Position {
         }
       }
       Some(resource) => {
-        let mut targets: Vec<Target> = room
+        let mut targets: Vec<Target> = self
           .find(find::MINERALS)
           .into_iter()
           .filter_map(|s: Mineral| {
-            if s.mineral_type() == ResourceType && !s.has_creep() {
+            if s.mineral_type() == resource && !s.has_creep() {
               Some(Target::Mineral(s))
             } else {
               None
             }
           })
           .collect();
-        for deposit in room.find(find::DEPOSITS) as Vec<Deposit> {
+        for deposit in self.find(find::DEPOSITS) as Vec<Deposit> {
           if deposit.deposit_type() == resource && !deposit.has_creep() {
             targets.push(Target::Deposit(deposit));
           }
@@ -375,7 +373,7 @@ impl Finder for Position {
         }
       }
       None => {
-        let mut targets: Vec<Target> = room
+        let mut targets: Vec<Target> = self
           .find(find::SOURCES_ACTIVE)
           .into_iter()
           .filter_map(|s: Source| {
@@ -387,13 +385,13 @@ impl Finder for Position {
           })
           .collect();
 
-        for m in room.find(find::MINERALS) as Vec<Mineral> {
+        for m in self.find(find::MINERALS) as Vec<Mineral> {
           if !m.has_creep() {
             targets.push(Target::Mineral(m));
           }
         }
 
-        for d in room.find(find::DEPOSITS) as Vec<Deposit> {
+        for d in self.find(find::DEPOSITS) as Vec<Deposit> {
           if !d.has_creep() {
             targets.push(Target::Deposit(d));
           }
@@ -412,9 +410,8 @@ impl Finder for Position {
     &self,
     resource: Option<ResourceType>,
   ) -> Option<Resource> {
-    let room = game::rooms::get(self.room_name()).unwrap();
     let targets: Vec<Target> = if let Some(resource) = resource {
-      room
+      self
         .find(find::DROPPED_RESOURCES)
         .into_iter()
         .filter_map(|s: Resource| {
@@ -426,13 +423,17 @@ impl Finder for Position {
         })
         .collect()
     } else {
-      room.find(find::DROPPED_RESOURCES).into_iter().filter_map(|s| {
-        if s.has_creep() {
-          None
-        } else {
-          Some(Target::Resource(s))
-        }
-      })
+      self
+        .find(find::DROPPED_RESOURCES)
+        .into_iter()
+        .filter_map(|s| {
+          if s.has_creep() {
+            None
+          } else {
+            Some(Target::Resource(s))
+          }
+        })
+        .collect()
     };
 
     if let Some(Target::Resource(t)) = self.find_closest_by_path(targets) {
@@ -446,14 +447,14 @@ impl Finder for Position {
     &self,
     resource: Option<ResourceType>,
   ) -> Option<WithdrawTarget> {
-    todo!()
+    todo!("withdraw_primary")
   }
 
   fn find_withdraw_target_secondary(
     &self,
     resource: Option<ResourceType>,
   ) -> Option<WithdrawTarget> {
-    todo!()
+    todo!("withdraw_secondary")
   }
 
   fn find_claim_target(&self) -> Option<StructureController> {
@@ -477,18 +478,17 @@ impl Finder for Position {
   }
 
   fn find_reserve_target(&self) -> Option<StructureController> {
-    todo!()
+    todo!("reserve_target")
   }
 
   fn find_attack_target(&self) -> Option<AttackTarget> {
-    let room = game::rooms::get(self.room_name()).unwrap();
-    let mut targets = room
+    let mut targets = self
       .find(find::HOSTILE_CREEPS)
       .into_iter()
       .map(|s| Target::Creep(s))
-      .collect() as Vec<Target>;
+      .collect::<Vec<Target>>();
 
-    for target in room
+    for target in self
       .find(find::HOSTILE_POWER_CREEPS)
       .into_iter()
       .map(|s| Target::PowerCreep(s))
@@ -496,12 +496,8 @@ impl Finder for Position {
       targets.push(target);
     }
 
-    for target in room
-      .find(find::HOSTILE_STRUCTURES)
-      .into_iter()
-      .map(|s| Target::Structure(s))
-    {
-      targets.push(target);
+    for target in self.find(find::HOSTILE_STRUCTURES) as Vec<OwnedStructure> {
+      targets.push(Target::Structure(target.as_structure()));
     }
 
     if let Some(target) = self.find_closest_by_path(targets) {
@@ -519,26 +515,49 @@ impl Finder for Position {
   }
 
   fn find_rally_point(&self) -> Option<RallyTarget> {
-    todo!()
+    todo!("rally_target")
   }
 
   fn find_heal_target(&self) -> Option<AttackTarget> {
-    todo!()
+    let mut targets = self
+      .find(find::MY_CREEPS)
+      .into_iter()
+      .filter_map(|s| {
+        if s.hits() < s.hits_max() && !s.has_creep() {
+          Some(Target::Creep(s))
+        } else {
+          None
+        }
+      })
+      .collect::<Vec<Target>>();
+
+    // Power creeps don't work for some reason
+    for structure in self.find(find::STRUCTURES) {
+      if let Some(s) = structure.as_attackable() {
+        if s.hits() < s.hits_max() && !structure.has_creep() {
+          targets.push(Target::Structure(structure));
+        }
+      }
+    }
+    if let Some(target) = self.find_closest_by_path(targets) {
+      target.into_transfer_target()
+    } else {
+      None
+    }
   }
 
   fn find_pull_target(&self) -> Option<Creep> {
-    let room = game::rooms::get(self.room_name()).unwrap();
-    let targets = room
+    let targets = self
       .find(find::MY_CREEPS)
       .into_iter()
-      .filter_map(|s: Creep| {
-        if (s.has_creep() || s.get_active_bodyparts(Move) > 0) {
+      .filter_map(|s| {
+        if s.has_creep() || s.get_active_bodyparts(Move) > 0 {
           None
         } else {
           Some(Target::Creep(s))
         }
       })
-      .collect() as Vec<Target>;
+      .collect::<Vec<Target>>();
     if let Some(Target::Creep(c)) = self.find_closest_by_path(targets) {
       Some(c)
     } else {
@@ -547,6 +566,6 @@ impl Finder for Position {
   }
 
   fn find_sign_target(&self) -> Option<StructureController> {
-    todo!()
+    todo!("sign_target")
   }
 }
