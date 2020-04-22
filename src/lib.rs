@@ -7,6 +7,7 @@ pub use std::collections::HashSet;
 /// Standard display format for saving to memory.
 pub use std::fmt::{Display, Formatter, Result};
 pub use std::str::FromStr;
+pub use stdweb::Reference;
 
 /// Basic logging through debug!, info!, warn!, and error! macros.
 pub use log::*;
@@ -17,7 +18,7 @@ pub use screeps::{
   objects::*,
   pathfinder::{search, SearchOptions},
   prelude::*,
-  traits::TryFrom,
+  traits::{IntoExpectedType, TryFrom, TryInto},
   ObjectId, Part, Position, RawObjectId, ResourceType, ReturnCode,
   RoomObjectProperties,
 };

@@ -8,10 +8,8 @@ pub trait Runner {
 
 impl Runner for Creep {
   fn run(&self) -> ReturnCode {
-    let mut creep = Creeper::new(self.clone());
     // time_hack(format!("Running creep: {}", creep.creep.name()).as_str());
-    // TODO run this fully here
-    creep.run()
+    todo!("Run creep here")
   }
 }
 
@@ -34,14 +32,7 @@ impl Runner for Structure {
       Structure::Portal(_) => ReturnCode::Ok,
       Structure::Rampart(_) => ReturnCode::Ok,
       Structure::Road(_) => ReturnCode::Ok,
-      Structure::Spawn(spawn) => {
-        debug!("running spawn {}", spawn.name());
-        let spawn = Spawner::new(spawn.clone());
-
-        let r = spawn.spawn_as_needed();
-        debug!("Spawn returned: {:?}", r);
-        todo!("Run this locally here.")
-      }
+      Structure::Spawn(spawn) => todo!("Run Spawner."),
       Structure::Storage(_) => ReturnCode::Ok,
       Structure::Terminal(_) => todo!("Run Terminal here"),
       Structure::Tower(tower) => {

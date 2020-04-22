@@ -37,11 +37,9 @@ pub enum Role {
 /// as well as easy debugging
 impl Display for Role {
   fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-    write!(f, to_string(self).unwrap())
+    write!(f, "{}", to_string(self).unwrap())
   }
 }
-
-const KEY: &str = "role";
 
 /// General helper methods
 impl Role {
