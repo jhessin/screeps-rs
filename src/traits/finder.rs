@@ -3,7 +3,7 @@ use screeps::Part::Move;
 use screeps::StructureType;
 use stdweb::ReferenceType;
 
-const ROOM_SIZE: u32 = 79;
+const ROOM_SIZE: u32 = 49;
 
 /// This is the finder trait for implementing methods on the Position type
 pub trait Finder {
@@ -106,7 +106,10 @@ impl Finder for Position {
     for target in targets {
       let result =
         search(self, &target, std::u32::MAX, SearchOptions::default());
-      if !result.incomplete && result.cost < nearest_cost {
+      if result.incomplete {
+        trace!("Couldn't find a path! cost: {}", result.cost);
+      }
+      if result.cost < nearest_cost {
         nearest_cost = result.cost;
         nearest = Some(target);
       }
@@ -289,6 +292,7 @@ impl Finder for Position {
     &self,
     resource: Option<ResourceType>,
   ) -> Option<T> {
+    trace!("Searching for a harvest target for {:?}", resource);
     match resource {
       Some(ResourceType::Energy) => {
         let sources: Vec<RoomObject> = self
@@ -296,13 +300,19 @@ impl Finder for Position {
           .into_iter()
           .filter_map(|s| {
             if s.has_creep() {
+              trace!("id: {} has a creep assigned - skipping", s.id());
               None
             } else {
-              s.as_ref().clone().downcast()
+              trace!("id: {} found!", s.id());
+              let s = s.as_ref().clone().downcast::<RoomObject>();
+              trace!("Converted to room object: {}", s.is_some());
+              s
             }
           })
           .collect();
+        trace!("{} sources found", sources.len());
         if let Some(target) = self.find_closest_by_path(sources) {
+          trace!("Target Source found {:?}", target.as_ref());
           target.as_ref().clone().downcast()
         } else {
           None
@@ -314,7 +324,11 @@ impl Finder for Position {
           .into_iter()
           .filter_map(|s: Mineral| {
             if s.mineral_type() == resource && !s.has_creep() {
-              s.as_ref().clone().downcast()
+              if s.pos().find_in_range(find::STRUCTURES, 0).len() > 0 {
+                s.as_ref().clone().downcast()
+              } else {
+                None
+              }
             } else {
               None
             }

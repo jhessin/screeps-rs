@@ -11,7 +11,9 @@ pub trait Runner {
 
 impl Runner for Creep {
   fn run(&self) -> ReturnCode {
+    trace!("Running creep: {}", self.name());
     if self.spawning() {
+      trace!("{} is busy", self.name());
       return ReturnCode::Busy;
     }
 
@@ -19,37 +21,55 @@ impl Runner for Creep {
       self.memory().get_value(Keys::Action),
       self.memory().get_value(Keys::TargetId),
     ) {
+      trace!("{} has an action already assigned: {}", self.name(), action);
       return run_creep_action(self, action, &target);
     }
 
     // time_hack(format!("Running creep: {}", creep.creep.name()).as_str());
     if let Some(Values::Role(role)) = self.memory().get_value(Keys::Role) {
+      trace!("{} is a {}: running role", self.name(), role);
       return role.run(self);
     }
 
     // INVALID ROLE!
+    trace!("{} has an invalid role", self.name());
     use Part::*;
     let role = if self.get_active_bodyparts(Move) == 1 && self.body().len() == 1
     {
+      trace!("{} only has a move part assigning scout", self.name());
       Role::Scout
-    } else if self.get_active_bodyparts(Carry) == 0 {
+    } else if self.get_active_bodyparts(Carry) == 0
+      && self.get_active_bodyparts(Work) > 0
+    {
+      trace!(
+        "{} has no carry part but has work part assigning Miner",
+        self.name()
+      );
       Role::Miner
-    } else if self.get_active_bodyparts(Work) == 0 {
+    } else if self.get_active_bodyparts(Work) == 0
+      && self.get_active_bodyparts(Carry) > 0
+    {
+      trace!("{} has no Work part but can carry assigning Lorry", self.name());
       Role::Lorry
     } else if self.get_active_bodyparts(Work) > 0
       && self.get_active_bodyparts(Carry) > 0
     {
+      trace!("{} has Work and Carry - Assigning Upgrader", self.name());
       Role::Upgrader
+    } else if self.get_active_bodyparts(Heal) > 0 {
+      trace!("{} has a heal part - Assigning Healer", self.name());
+      Role::Healer
     } else if self.get_active_bodyparts(Attack) > 0
       || self.get_active_bodyparts(RangedAttack) > 0
     {
+      trace!("{} has attack parts - Assigning Soldier", self.name());
       Role::Soldier
-    } else if self.get_active_bodyparts(Heal) > 0 {
-      Role::Healer
     } else if self.get_active_bodyparts(Claim) > 0 {
-      Role::Claimer
+      trace!("{} has a claim part - Assigning Reserver", self.name());
+      Role::Reserver
     } else {
       // Assign role based on first body part
+      trace!("{} only has a move part assigning scout", self.name());
       match self.body()[0].part {
         Move => Role::Scout,
         Work => Role::Miner,
@@ -58,11 +78,13 @@ impl Runner for Creep {
         RangedAttack => Role::Soldier,
         Tough => Role::Scout,
         Heal => Role::Healer,
-        Claim => Role::Claimer,
+        Claim => Role::Reserver,
       }
     };
+    trace!("{} is now a {}", self.name(), role);
     self.memory().set_value(Values::Role(role));
 
+    trace!("Running calculated role");
     role.run(self)
   }
 }
@@ -74,6 +96,7 @@ fn run_creep_action(
 ) -> ReturnCode {
   // use ReturnCode::*;
   let target = String::from(target);
+  trace!("Running preexisting action on target with id {}", &target);
 
   match action {
     Actions::Attack => {
@@ -265,10 +288,13 @@ impl Runner for Structure {
       Structure::Road(_) => ReturnCode::Ok,
       Structure::Spawn(spawn) => {
         use ReturnCode::*;
+        trace!("Running Spawn {}", spawn.name());
         if spawn.is_spawning() {
+          trace!("{} is busy spawning", spawn.name());
           return Busy;
         }
         if Role::spawn_emergencies(spawn) {
+          trace!("{} spawning an emergency spawn", spawn.name());
           Ok
         } else if Role::spawn_min(spawn) {
           Ok

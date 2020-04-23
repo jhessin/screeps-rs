@@ -11,6 +11,7 @@ pub use stdweb::Reference;
 
 /// Basic logging through debug!, info!, warn!, and error! macros.
 pub use log::*;
+pub use ron::{de::from_str, ser::to_string};
 /// The screeps imports
 pub use screeps::{
   find, game,
@@ -23,7 +24,6 @@ pub use screeps::{
   RoomObjectProperties,
 };
 pub use serde::{Deserialize, Serialize};
-pub use serde_json::{from_str, to_string};
 /// If we want to use js
 pub use stdweb::js;
 

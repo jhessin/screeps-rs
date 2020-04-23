@@ -10,7 +10,7 @@ log = "0.4"
 fern = "0.5"
 screeps-game-api = { path = "../screeps-game-api" }
 serde = "1.0.105"
-serde_json = "1.0.50"
+ron = "0.5.1"
 
 [profile.release]
 panic = "abort"

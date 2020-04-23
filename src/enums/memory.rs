@@ -151,3 +151,9 @@ pub enum Actions {
   /// Withdraw the indicated resource
   Withdraw,
 }
+
+impl Display for Actions {
+  fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    write!(f, "{}", to_string(self).unwrap())
+  }
+}

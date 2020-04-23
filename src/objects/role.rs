@@ -558,7 +558,10 @@ fn get_energy(creep: &Creep) -> ReturnCode {
   if room.creeps_with_role(Role::Miner).len() > 0
     || creep.get_active_bodyparts(Part::Work) == 0
   {
-    error!("Creep can't find energy: {}", creep.name());
+    error!(
+      "Creep can't find energy without encroaching on a miner: {}",
+      creep.name()
+    );
     return ReturnCode::NoBodypart;
   }
 
