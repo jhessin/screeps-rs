@@ -20,6 +20,9 @@ pub trait CreepActions {
   /// Attack
   fn go_attack<T: Attackable + HasId>(&self, target: &T) -> ReturnCode;
 
+  /// Attack a structure
+  fn go_attack_structure(&self, target: &Structure) -> ReturnCode;
+
   /// Attack Controller
   fn go_attack_controller(&self, target: &StructureController) -> ReturnCode;
 
@@ -39,7 +42,10 @@ pub trait CreepActions {
   fn go_harvest<T: Harvestable + HasId>(&self, target: &T) -> ReturnCode;
 
   /// Heal
-  fn go_heal(&self, target: &Creep) -> ReturnCode;
+  fn go_heal_creep(&self, target: &Creep) -> ReturnCode;
+
+  /// Heal Power Creep
+  fn go_heal_power_creep(&self, target: &PowerCreep) -> ReturnCode;
 
   /// Pickup
   fn go_pickup(&self, target: &Resource) -> ReturnCode;
@@ -60,17 +66,17 @@ pub trait CreepActions {
   fn go_upgrade_controller(&self, target: &StructureController) -> ReturnCode;
 
   /// Transfer
-  fn go_transfer<T: Transferable + HasId + HasStore>(
+  fn go_transfer(
     &self,
-    target: &T,
+    target: &Structure,
     resource: ResourceType,
     amount: Option<u32>,
   ) -> ReturnCode;
 
   /// Withdraw
-  fn go_withdraw<T: Withdrawable + HasId + HasStore>(
+  fn go_withdraw(
     &self,
-    target: &T,
+    target: &Structure,
     resource: ResourceType,
     amount: Option<u32>,
   ) -> ReturnCode;
@@ -109,8 +115,18 @@ impl CreepActions for Creep {
     return self.travel_or_report(code, target);
   }
 
+  fn go_attack_structure(&self, target: &Structure) -> ReturnCode {
+    let attack = if let Some(target) = target.as_attackable() {
+      target
+    } else {
+      return self.reset_action();
+    };
+    self.memory().set_value(Values::Action(Actions::Attack));
+    return self.travel_or_report(self.attack(attack), target);
+  }
+
   fn go_attack_controller(&self, target: &StructureController) -> ReturnCode {
-    if target.my() {
+    if target.my() || !target.has_owner() {
       return self.reset_action();
     }
     self.memory().set_value(Values::Action(Actions::AttackController));
@@ -156,7 +172,15 @@ impl CreepActions for Creep {
     self.travel_or_report(self.harvest(target), target)
   }
 
-  fn go_heal(&self, target: &Creep) -> ReturnCode {
+  fn go_heal_creep(&self, target: &Creep) -> ReturnCode {
+    if target.hits() == target.hits_max() {
+      return self.reset_action();
+    }
+    self.memory().set_value(Values::Action(Actions::Heal));
+    self.travel_or_report(self.heal(target), target)
+  }
+
+  fn go_heal_power_creep(&self, target: &PowerCreep) -> ReturnCode {
     if target.hits() == target.hits_max() {
       return self.reset_action();
     }
@@ -249,44 +273,64 @@ impl CreepActions for Creep {
     self.travel_or_report(self.upgrade_controller(target), target)
   }
 
-  fn go_transfer<T: Transferable + HasId + HasStore>(
+  fn go_transfer(
     &self,
-    target: &T,
+    target: &Structure,
     resource: ResourceType,
     amount: Option<u32>,
   ) -> ReturnCode {
+    let transferable = if let Some(target) = target.as_transferable() {
+      target
+    } else {
+      return self.reset_action();
+    };
+    let store = if let Some(target) = target.as_has_store() {
+      target
+    } else {
+      return self.reset_action();
+    };
     if self.store_used_capacity(Some(resource)) == 0
-      || target.store_free_capacity(Some(resource)) == 0
+      || store.store_free_capacity(Some(resource)) == 0
     {
       return self.reset_action();
     }
     self.memory().set_value(Values::Action(Actions::Transfer));
     self.memory().set_value(Values::Resource(resource));
     let code = if let Some(amount) = amount {
-      self.transfer_amount(target, resource, amount)
+      self.transfer_amount(transferable, resource, amount)
     } else {
-      self.transfer_all(target, resource)
+      self.transfer_all(transferable, resource)
     };
     self.travel_or_report(code, target)
   }
 
-  fn go_withdraw<T: Withdrawable + HasId + HasStore>(
+  fn go_withdraw(
     &self,
-    target: &T,
+    target: &Structure,
     resource: ResourceType,
     amount: Option<u32>,
   ) -> ReturnCode {
+    let withdrawable = if let Some(target) = target.as_withdrawable() {
+      target
+    } else {
+      return self.reset_action();
+    };
+    let store = if let Some(target) = target.as_has_store() {
+      target
+    } else {
+      return self.reset_action();
+    };
     if self.store_free_capacity(Some(resource)) == 0
-      || target.store_used_capacity(Some(resource)) == 0
+      || store.store_used_capacity(Some(resource)) == 0
     {
       return self.reset_action();
     }
     self.memory().set_value(Values::Action(Actions::Withdraw));
     self.memory().set_value(Values::Resource(resource));
     let code = if let Some(amount) = amount {
-      self.withdraw_amount(target, resource, amount)
+      self.withdraw_amount(withdrawable, resource, amount)
     } else {
-      self.withdraw_all(target, resource)
+      self.withdraw_all(withdrawable, resource)
     };
     self.travel_or_report(code, target)
   }

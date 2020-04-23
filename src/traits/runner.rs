@@ -12,13 +12,195 @@ impl Runner for Creep {
       return ReturnCode::Busy;
     }
 
+    if let (Some(Values::Action(action)), Some(Values::TargetId(target))) = (
+      self.memory().get_value(Keys::Action),
+      self.memory().get_value(Keys::TargetId),
+    ) {
+      return run_creep_action(self, action, &target);
+    }
+
     // time_hack(format!("Running creep: {}", creep.creep.name()).as_str());
     if let Some(Values::Role(role)) = self.memory().get_value(Keys::Role) {
       return role.run(self);
     }
 
     // INVALID ROLE!
-    ReturnCode::Tired
+    use Part::*;
+    let role = if self.get_active_bodyparts(Move) == 1 && self.body().len() == 1
+    {
+      Role::Scout
+    } else if self.get_active_bodyparts(Carry) == 0 {
+      Role::Miner
+    } else if self.get_active_bodyparts(Work) == 0 {
+      Role::Lorry
+    } else if self.get_active_bodyparts(Work) > 0
+      && self.get_active_bodyparts(Carry) > 0
+    {
+      Role::Upgrader
+    } else if self.get_active_bodyparts(Attack) > 0
+      || self.get_active_bodyparts(RangedAttack) > 0
+    {
+      Role::Soldier
+    } else if self.get_active_bodyparts(Heal) > 0 {
+      Role::Healer
+    } else if self.get_active_bodyparts(Claim) > 0 {
+      Role::Claimer
+    } else {
+      // Assign role based on first body part
+      match self.body()[0].part {
+        Move => Role::Scout,
+        Work => Role::Miner,
+        Carry => Role::Lorry,
+        Attack => Role::Soldier,
+        RangedAttack => Role::Soldier,
+        Tough => Role::Scout,
+        Heal => Role::Healer,
+        Claim => Role::Claimer,
+      }
+    };
+    self.memory().set_value(Values::Role(role));
+
+    role.run(self)
+  }
+}
+
+fn run_creep_action(
+  creep: &Creep,
+  action: Actions,
+  target: &str,
+) -> ReturnCode {
+  // use ReturnCode::*;
+  let target = String::from(target);
+
+  match action {
+    Actions::Attack => {
+      if let Some(creep) = target.as_creep() {
+        creep.go_attack(&creep)
+      } else if let Some(target) = target.as_power_creep() {
+        creep.go_attack(&target)
+      } else if let Some(target) = target.as_structure() {
+        creep.go_attack_structure(&target)
+      } else {
+        creep.reset_action()
+      }
+    }
+    Actions::AttackController => {
+      if let Some(Structure::Controller(target)) = target.as_structure() {
+        creep.go_attack_controller(&target)
+      } else {
+        creep.reset_action()
+      }
+    }
+    Actions::Build => {
+      if let Some(target) = target.as_construction_site() {
+        creep.go_build(&target)
+      } else {
+        creep.reset_action()
+      }
+    }
+    Actions::ClaimController => {
+      if let Some(Structure::Controller(target)) = target.as_structure() {
+        creep.go_claim_controller(&target)
+      } else {
+        creep.reset_action()
+      }
+    }
+    Actions::Dismantle => {
+      if let Some(target) = target.as_structure() {
+        creep.go_dismantle(&target)
+      } else {
+        creep.reset_action()
+      }
+    }
+    Actions::GenerateSafeMode => {
+      if let Some(Structure::Controller(target)) = target.as_structure() {
+        creep.go_generate_safe_mode(&target)
+      } else {
+        creep.reset_action()
+      }
+    }
+    Actions::Harvest => {
+      if let Some(target) = target.as_source() {
+        creep.go_harvest(&target)
+      } else if let Some(target) = target.as_mineral() {
+        creep.go_harvest(&target)
+      } else if let Some(target) = target.as_deposit() {
+        creep.go_harvest(&target)
+      } else {
+        creep.reset_action()
+      }
+    }
+    Actions::Heal => {
+      if let Some(target) = target.as_creep() {
+        creep.go_heal_creep(&target)
+      } else if let Some(target) = target.as_power_creep() {
+        creep.go_heal_power_creep(&target)
+      } else {
+        creep.reset_action()
+      }
+    }
+    Actions::Pickup => {
+      if let Some(target) = target.as_resource() {
+        creep.go_pickup(&target)
+      } else {
+        creep.reset_action()
+      }
+    }
+    Actions::Pull => {
+      if let Some(target) = target.as_creep() {
+        creep.go_pull(&target)
+      } else {
+        creep.reset_action()
+      }
+    }
+    Actions::Repair => {
+      if let Some(target) = target.as_structure() {
+        creep.go_repair(&target)
+      } else {
+        creep.reset_action()
+      }
+    }
+    Actions::ReserveController => {
+      if let Some(Structure::Controller(target)) = target.as_structure() {
+        creep.go_reserve_controller(&target)
+      } else {
+        creep.reset_action()
+      }
+    }
+    Actions::SignController => {
+      if let Some(Structure::Controller(target)) = target.as_structure() {
+        creep.go_sign_controller(&target)
+      } else {
+        creep.reset_action()
+      }
+    }
+    Actions::UpgradeController => {
+      if let Some(Structure::Controller(target)) = target.as_structure() {
+        creep.go_upgrade_controller(&target)
+      } else {
+        creep.reset_action()
+      }
+    }
+    Actions::Transfer => {
+      if let Some(Values::Resource(resource)) =
+        creep.memory().get_value(Keys::Resource)
+      {
+        if let Some(target) = target.as_structure() {
+          return creep.go_transfer(&target, resource, None);
+        }
+      }
+      creep.reset_action()
+    }
+    Actions::Withdraw => {
+      if let Some(Values::Resource(resource)) =
+        creep.memory().get_value(Keys::Resource)
+      {
+        if let Some(target) = target.as_structure() {
+          return creep.go_withdraw(&target, resource, None);
+        }
+      }
+      creep.reset_action()
+    }
   }
 }
 
@@ -78,7 +260,19 @@ impl Runner for Structure {
       Structure::Portal(_) => ReturnCode::Ok,
       Structure::Rampart(_) => ReturnCode::Ok,
       Structure::Road(_) => ReturnCode::Ok,
-      Structure::Spawn(spawn) => todo!("Run Spawner."),
+      Structure::Spawn(spawn) => {
+        use ReturnCode::*;
+        if spawn.is_spawning() {
+          return Busy;
+        }
+        if Role::spawn_emergencies(spawn) {
+          Ok
+        } else if Role::spawn_min(spawn) {
+          Ok
+        } else {
+          Role::spawn_extras(spawn)
+        }
+      }
       Structure::Storage(_) => ReturnCode::Ok,
       Structure::Terminal(_) => todo!("Run Terminal here"),
       Structure::Tower(tower) => {

@@ -1,7 +1,9 @@
 //! Holds global constants that can be used throughout the program.
 
+use crate::*;
+
 /// Holds all the names we will rotate through.
-pub const NAMES: [&str; 20] = [
+const NAMES: [&str; 20] = [
   "Jim",
   "Crystal",
   "Nathan",
@@ -24,22 +26,15 @@ pub const NAMES: [&str; 20] = [
   "Ezra",
 ];
 
-/// The role key constants used to indicate a role.
-/// Harvester key
-pub const HARVESTER: &str = "harvester";
-/// Miner key
-pub const MINER: &str = "miner";
-/// Upgrader key
-pub const UPGRADER: &str = "upgrader";
-/// builder key
-pub const BUILDER: &str = "builder";
-/// repairer key
-pub const REPAIRER: &str = "repairer";
-/// wall-repairer key
-pub const WALL_REPAIRER: &str = "wallRepairer";
-/// lorry key
-pub const LORRY: &str = "lorry";
-/// specialist key
-pub const SPECIALIST: &str = "specialist";
-/// Claimer key
-pub const CLAIMER: &str = "claimer";
+/// This gets a random name from my NAMES constant
+pub fn get_random_name(room: Room) -> String {
+  for name in NAMES.iter() {
+    let name = format!("{}_{}", name, room.name());
+    if let Some(_) = game::creeps::get(&name) {
+      continue;
+    }
+    return name;
+  }
+  // We have run out of names:
+  String::new()
+}

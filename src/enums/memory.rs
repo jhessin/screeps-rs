@@ -1,7 +1,7 @@
 use crate::*;
 
 /// This holds all the memory keys that I will use. Simply use a to_str or json::from_str on them
-#[derive(Serialize, Deserialize, Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub enum Keys {
   /// The action that a creep is taking
   Action,
@@ -105,7 +105,7 @@ impl ValueSet for MemoryReference {
 }
 
 /// This holds all the actions that a creep could take on a target.
-#[derive(Serialize, Deserialize, Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub enum Actions {
   /// Attack the target
   Attack,
