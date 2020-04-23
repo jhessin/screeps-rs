@@ -1,3 +1,3 @@
 <component name="DependencyValidationManager">
-  <scope name="config" pattern="file:.gitignore||file:Cargo.toml||file:screeps.toml" />
+  <scope name="config" pattern="!file[screeps-rs]:target//*&amp;&amp;!file[screeps-rs]:.idea//*&amp;&amp;!file[screeps-rs]:src//*&amp;&amp;!file:Cargo.lock&amp;&amp;!file:README.md&amp;&amp;!file:LICENSE" />
 </component>

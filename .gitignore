@@ -31,7 +31,6 @@ Thumbs.db
 .project
 .settings
 nbproject
-*.iml
 *.ipr
 *.iws
 *.sublime-project
