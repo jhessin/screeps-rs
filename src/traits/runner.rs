@@ -1,4 +1,7 @@
 use crate::*;
+use screeps::game::market::{Order, OrderType};
+use screeps::MarketResourceType;
+use screeps::ResourceType::Energy;
 
 /// This trait allows things to run!
 pub trait Runner {
@@ -186,7 +189,7 @@ fn run_creep_action(
         creep.memory().get_value(Keys::Resource)
       {
         if let Some(target) = target.as_structure() {
-          return creep.go_transfer(&target, resource, None);
+          return creep.go_transfer_to_structure(&target, resource, None);
         }
       }
       creep.reset_action()
@@ -196,7 +199,7 @@ fn run_creep_action(
         creep.memory().get_value(Keys::Resource)
       {
         if let Some(target) = target.as_structure() {
-          return creep.go_withdraw(&target, resource, None);
+          return creep.go_withdraw_from_structure(&target, resource, None);
         }
       }
       creep.reset_action()
@@ -274,7 +277,60 @@ impl Runner for Structure {
         }
       }
       Structure::Storage(_) => ReturnCode::Ok,
-      Structure::Terminal(_) => todo!("Run Terminal here"),
+      Structure::Terminal(t) => {
+        if t.cooldown() > 0 {
+          return ReturnCode::Busy;
+        }
+        let room_name = t.room().unwrap().name();
+
+        let resources = t.store_types();
+        for r in resources {
+          if r == Energy {
+            continue;
+          }
+          if t.store_used_capacity(Some(r)) == 0 {
+            warn!("Skipping empty store in terminal of room: {}", room_name);
+            continue;
+          }
+
+          let amount = t.store_used_capacity(Some(r));
+          let mut orders: Vec<Order> = game::market::get_all_orders()
+            .into_iter()
+            .filter(|s| {
+              s.order_type == OrderType::Buy
+                && s.resource_type == MarketResourceType::Resource(r)
+            })
+            .collect();
+
+          if orders.len() == 0 {
+            // there are no orders for this resource
+            continue;
+          }
+          let mut best = orders.pop().unwrap();
+          while orders.len() > 0 {
+            let order = orders.pop().unwrap();
+            // calculate the cost of the order
+            if let (Some(order_room), Some(best_room)) =
+              (order.room_name, best.room_name)
+            {
+              let order_cost = game::market::calc_transaction_cost(
+                amount, room_name, order_room,
+              );
+              let best_cost = game::market::calc_transaction_cost(
+                amount, room_name, best_room,
+              );
+              if order.price > best.price || order_cost < best_cost {
+                best = order;
+              }
+            }
+          }
+
+          // all orders are in now deal with the best
+          return game::market::deal(&best.id, amount, Some(room_name));
+        }
+
+        ReturnCode::Ok
+      }
       Structure::Tower(tower) => {
         if let Some(target) =
           tower.pos().find_closest_by_range(find::HOSTILE_CREEPS)

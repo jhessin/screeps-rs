@@ -8,7 +8,7 @@ pub trait HasContainer {
   fn container(&self) -> Option<StructureContainer>;
 }
 
-impl HasContainer for Source {
+impl<T: RoomObjectProperties> HasContainer for T {
   fn container(&self) -> Option<StructureContainer> {
     let mut containers: Vec<StructureContainer> =
       self

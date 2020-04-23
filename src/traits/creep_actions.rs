@@ -5,6 +5,9 @@ pub trait CreepActions {
   /// This resets the memory of a creep - path data, target data, and action data
   fn reset_action(&self) -> ReturnCode;
 
+  /// This will tell me if a creep is working as well as update the state
+  fn working(&self) -> bool;
+
   /// This will travel to a target if it is out of range or report any other error.
   /// It also saves the target to the creeps memory.
   fn travel_or_report<T: RoomObjectProperties + HasId>(
@@ -65,18 +68,34 @@ pub trait CreepActions {
   /// UpgradeController
   fn go_upgrade_controller(&self, target: &StructureController) -> ReturnCode;
 
-  /// Transfer
-  fn go_transfer(
+  /// Transfer to structure
+  fn go_transfer_to_structure(
     &self,
     target: &Structure,
     resource: ResourceType,
     amount: Option<u32>,
   ) -> ReturnCode;
 
-  /// Withdraw
-  fn go_withdraw(
+  /// Transfer to anything else
+  fn go_transfer<T: Transferable + HasStore + RoomObjectProperties + HasId>(
+    &self,
+    target: &T,
+    resource: ResourceType,
+    amount: Option<u32>,
+  ) -> ReturnCode;
+
+  /// Withdraw from structure
+  fn go_withdraw_from_structure(
     &self,
     target: &Structure,
+    resource: ResourceType,
+    amount: Option<u32>,
+  ) -> ReturnCode;
+
+  /// Withdraw from anything else
+  fn go_withdraw<T: Withdrawable + HasStore + RoomObjectProperties + HasId>(
+    &self,
+    target: &T,
     resource: ResourceType,
     amount: Option<u32>,
   ) -> ReturnCode;
@@ -90,6 +109,28 @@ impl CreepActions for Creep {
     self.memory().rm_value(Keys::Action);
 
     ReturnCode::InvalidTarget
+  }
+
+  fn working(&self) -> bool {
+    let working = if let Some(Values::Working(w)) =
+      self.memory().get_value(Keys::Working)
+    {
+      w
+    } else {
+      false
+    };
+
+    if working && self.store_used_capacity(Some(ResourceType::Energy)) == 0 {
+      self.memory().set_value(Values::Working(false));
+      false
+    } else if !working
+      && self.store_free_capacity(Some(ResourceType::Energy)) == 0
+    {
+      self.memory().set_value(Values::Working(true));
+      true
+    } else {
+      working
+    }
   }
 
   fn travel_or_report<T: RoomObjectProperties + HasId>(
@@ -273,7 +314,7 @@ impl CreepActions for Creep {
     self.travel_or_report(self.upgrade_controller(target), target)
   }
 
-  fn go_transfer(
+  fn go_transfer_to_structure(
     &self,
     target: &Structure,
     resource: ResourceType,
@@ -304,7 +345,28 @@ impl CreepActions for Creep {
     self.travel_or_report(code, target)
   }
 
-  fn go_withdraw(
+  fn go_transfer<T: Transferable + HasStore + RoomObjectProperties + HasId>(
+    &self,
+    target: &T,
+    resource: ResourceType,
+    amount: Option<u32>,
+  ) -> ReturnCode {
+    if self.store_used_capacity(Some(resource)) == 0
+      || target.store_free_capacity(Some(resource)) == 0
+    {
+      return self.reset_action();
+    }
+    self.memory().set_value(Values::Action(Actions::Transfer));
+    self.memory().set_value(Values::Resource(resource));
+    let code = if let Some(amount) = amount {
+      self.transfer_amount(target, resource, amount)
+    } else {
+      self.transfer_all(target, resource)
+    };
+    self.travel_or_report(code, target)
+  }
+
+  fn go_withdraw_from_structure(
     &self,
     target: &Structure,
     resource: ResourceType,
@@ -331,6 +393,27 @@ impl CreepActions for Creep {
       self.withdraw_amount(withdrawable, resource, amount)
     } else {
       self.withdraw_all(withdrawable, resource)
+    };
+    self.travel_or_report(code, target)
+  }
+
+  fn go_withdraw<T: Withdrawable + HasStore + RoomObjectProperties + HasId>(
+    &self,
+    target: &T,
+    resource: ResourceType,
+    amount: Option<u32>,
+  ) -> ReturnCode {
+    if self.store_free_capacity(Some(resource)) == 0
+      || target.store_used_capacity(Some(resource)) == 0
+    {
+      return self.reset_action();
+    }
+    self.memory().set_value(Values::Action(Actions::Withdraw));
+    self.memory().set_value(Values::Resource(resource));
+    let code = if let Some(amount) = amount {
+      self.withdraw_amount(target, resource, amount)
+    } else {
+      self.withdraw_all(target, resource)
     };
     self.travel_or_report(code, target)
   }

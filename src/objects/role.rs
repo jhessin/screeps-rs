@@ -1,5 +1,8 @@
 //! The role is the role that a creep will take.
+use crate::Role::Harvester;
 use crate::*;
+use screeps::ResourceType::Energy;
+use screeps::StructureType;
 
 /// This is an enum that lists the different roles
 #[derive(
@@ -66,7 +69,7 @@ impl Role {
       Role::Claimer => vec![Move, Move, Move, Move, Move, Claim],
       Role::Reserver => vec![Move, Move, Move, Move, Move, Claim],
       Role::Scout => vec![Move],
-      Role::Soldier => vec![Tough, Attack, RangedAttack, Move, Move, Move],
+      Role::Soldier => vec![Attack, RangedAttack, Move, Move, Move],
       Role::Healer => vec![RangedAttack, Heal, Move, Move],
     }
   }
@@ -115,11 +118,307 @@ impl Role {
 
   /// This works the role
   pub fn run(&self, creep: &Creep) -> ReturnCode {
-    todo!("Run each role here: {}", creep.id().to_string())
+    match self {
+      Role::Harvester => {
+        if creep.working() {
+          // get a target to fill
+          if let Some(t) =
+            creep.pos().find_transfer_target_primary(Some(Energy))
+          {
+            return creep.go_transfer_to_structure(&t, Energy, None);
+          } else if let Some(t) =
+            creep.pos().find_transfer_target_secondary(Some(Energy))
+          {
+            return creep.go_transfer_to_structure(&t, Energy, None);
+          }
+          // if we can't find a fill target go ahead and upgrade
+          upgrade(creep)
+        } else {
+          get_energy(creep)
+        }
+      }
+      Role::Miner => {
+        // if there is a miner all harvesters must DIE
+        let room = creep.room().unwrap();
+        for creep in room.creeps_with_role(Harvester) {
+          creep.suicide();
+        }
+
+        // first we find a minable source
+        if let Some(source) =
+          creep.pos().find_harvest_target::<Source>(Some(Energy))
+        {
+          // see if there is a container near it
+          if let Some(target) = source.container() {
+            return if creep.pos().eq(&target.pos()) {
+              creep.harvest(&source)
+            } else {
+              creep.move_to(&target)
+            };
+          }
+          return creep.go_harvest(&source);
+        }
+
+        // If there is no source try for other resources
+        if let Some(source) = creep.pos().find_harvest_target::<Mineral>(None) {
+          // see if there is a container near it
+          if let Some(target) = source.container() {
+            return if creep.pos().eq(&target.pos()) {
+              creep.harvest(&source)
+            } else {
+              creep.move_to(&target)
+            };
+          }
+          return creep.go_harvest(&source);
+        }
+        // Or deposits?
+        if let Some(source) = creep.pos().find_harvest_target::<Deposit>(None) {
+          // see if there is a container near it
+          if let Some(target) = source.container() {
+            return if creep.pos().eq(&target.pos()) {
+              creep.harvest(&source)
+            } else {
+              creep.move_to(&target)
+            };
+          }
+          return creep.go_harvest(&source);
+        }
+        // If all else fails report the issue
+        error!("Miner has nowhere to mine!");
+        return ReturnCode::NotEnough;
+      }
+      Role::Upgrader => {
+        if creep.working() {
+          upgrade(creep)
+        } else {
+          get_energy(creep)
+        }
+      }
+      Role::Builder => {
+        if creep.working() {
+          // find build target
+          if let Some(t) = creep.pos().find_build_target(None) {
+            creep.go_build(&t)
+          } else if let Some(t) = creep.pos().find_repair_target() {
+            // repair next
+            creep.go_repair(&t)
+          } else {
+            // then upgrade
+            upgrade(creep)
+          }
+        } else {
+          get_energy(creep)
+        }
+      }
+      Role::Repairer => {
+        if creep.working() {
+          // find repair target
+          if let Some(t) = creep.pos().find_repair_target() {
+            creep.go_repair(&t)
+          } else {
+            upgrade(creep)
+          }
+        } else {
+          get_energy(creep)
+        }
+      }
+      Role::WallRepairer => {
+        if creep.working() {
+          // find wall to build
+          if let Some(t) =
+            creep.pos().find_build_target(Some(StructureType::Wall))
+          {
+            creep.go_build(&t)
+          // find rampart to build
+          } else if let Some(t) =
+            creep.pos().find_build_target(Some(StructureType::Rampart))
+          {
+            creep.go_build(&t)
+          // find wall repair
+          } else if let Some(t) = creep.pos().find_wall_repair_target() {
+            creep.go_repair(&t)
+          } else {
+            upgrade(creep)
+          }
+        } else {
+          get_energy(creep)
+        }
+      }
+      Role::Lorry => {
+        if creep.working() {
+          // find a transfer target
+          // Should lorries deal in all resource types?
+          let mut resources = creep.store_types();
+          for i in 0..resources.len() {
+            let resource = resources[i];
+            if creep.store_used_capacity(Some(resource)) == 0 {
+              // is this even necessary?
+              info!("removing {:?} from lorry resources", resource);
+              resources.remove(i);
+            }
+          }
+          for resource in resources {
+            if let Some(t) =
+              creep.pos().find_transfer_target_primary(Some(resource))
+            {
+              return creep.go_transfer_to_structure(&t, resource, None);
+            }
+            if let Some(t) =
+              creep.pos().find_transfer_target_secondary(Some(resource))
+            {
+              return creep.go_transfer_to_structure(&t, resource, None);
+            }
+          }
+
+          // see if we can upgrade?
+          warn!("Lorry can't find anywhere to put it's resources");
+          if creep.store_used_capacity(Some(Energy)) > 0 {
+            upgrade(creep)
+          } else {
+            warn!("lorry has no energy to upgrade");
+            ReturnCode::NotEnough
+          }
+        } else {
+          // find dropped resources of any type
+          if let Some(t) = creep.pos().find_pickup_target(None) {
+            creep.go_pickup(&t)
+          } else if let Some(t) = creep.pos().find_withdraw_target_primary(None)
+          // find withdraw targets
+          {
+            if let Some(Structure::Container(t)) = t.as_structure() {
+              let resource = t.store_types()[0];
+              creep.go_withdraw(&t, resource, None)
+            } else if let Some(t) = t.as_tombstone() {
+              let resource = t.store_types()[0];
+              creep.go_withdraw(&t, resource, None)
+            } else if let Some(t) = t.as_ruin() {
+              let resource = t.store_types()[0];
+              creep.go_withdraw(&t, resource, None)
+            } else {
+              // Invalid item returned from withdraw target
+              error!("Invalid item from withdraw target");
+              ReturnCode::NotFound
+            }
+          } else if let Some(t) =
+            creep.pos().find_withdraw_target_secondary(None)
+          {
+            let store = t.as_has_store().expect("find_withdraw_target_secondary returning a target without a store");
+            let resource = store.store_types()[0];
+            creep.go_withdraw_from_structure(&t, resource, None)
+          } else {
+            // creep cannot find any usable energy
+            error!("Lorry can't find energy - are there miners?");
+            ReturnCode::NotFound
+          }
+        }
+      }
+      Role::LinkLoader => {
+        if creep.working() {
+          // find a link to load
+          let targets = creep
+            .pos()
+            .find(find::MY_STRUCTURES)
+            .into_iter()
+            .filter_map(|s| {
+              let s = s.as_structure();
+              if let Structure::Link(s) = s {
+                if s.store_free_capacity(None) > 0 {
+                  return Some(s);
+                }
+              }
+              None
+            })
+            .collect::<Vec<_>>();
+          if let Some(t) = creep.pos().find_closest_by_path(targets) {
+            creep.go_transfer(&t, Energy, None)
+          } else {
+            // No links
+            warn!("Link loader can't find any links to load");
+            ReturnCode::Full
+          }
+        } else {
+          get_energy(creep)
+        }
+      }
+      Role::Claimer => {
+        // find a claim target
+        if let Some(t) = creep.pos().find_claim_target() {
+          creep.go_claim_controller(&t)
+        } else {
+          // Nothing to claim
+          Role::Scout.run(creep)
+        }
+      }
+      Role::Reserver => {
+        // find a reserve target
+        if let Some(t) = creep.pos().find_reserve_target() {
+          creep.go_reserve_controller(&t)
+        } else {
+          Role::Scout.run(creep)
+        }
+      }
+      Role::Scout => {
+        // go to a scout flag
+        if let Some(flag) = game::flags::get("scout") {
+          creep.move_to(&flag)
+        } else {
+          // Try to keep a scout flag
+          ReturnCode::NotFound
+        }
+      }
+      Role::Soldier => {
+        // find any enemies in the room
+        // attack them
+        // if there are no enemies find a rally point
+        if let Some(t) = creep.pos().find_attack_target::<Creep>() {
+          creep.go_attack(&t)
+        } else if let Some(t) = creep.pos().find_attack_target::<PowerCreep>() {
+          creep.go_attack(&t)
+        } else if let Some(t) = creep.pos().find_attack_structure() {
+          creep.go_attack(&t)
+        } else {
+          // go to rally
+          if let Some(t) = creep.pos().find_rally_point() {
+            return creep.move_to(&t);
+          }
+          warn!("Make sure you have a valid rally target");
+          ReturnCode::NotFound
+        }
+      }
+      Role::Healer => {
+        // find any heal target
+        // heal them
+        // find any enemies to attack if still have a ranged attack part
+        // attack them
+        if let Some(t) = creep.pos().find_heal_target() {
+          return creep.go_heal_creep(&t);
+        } else if let Some(t) = creep.pos().find_heal_target() {
+          return creep.go_heal_power_creep(&t);
+        }
+
+        if creep.get_active_bodyparts(Part::RangedAttack) > 0 {
+          if let Some(t) = creep.pos().find_attack_target::<Creep>() {
+            return creep.go_attack(&t);
+          }
+          if let Some(t) = creep.pos().find_attack_target::<PowerCreep>() {
+            return creep.go_attack(&t);
+          }
+          if let Some(t) = creep.pos().find_attack_structure() {
+            return creep.go_attack(&t);
+          }
+        }
+
+        if let Some(t) = creep.pos().find_rally_point() {
+          return creep.move_to(&t);
+        }
+        warn!("Make sure you have a rally");
+        ReturnCode::NotFound
+      }
+    }
   }
 
   /// Spawn the specified role
-  pub fn spawn(&self, spawn: StructureSpawn) -> ReturnCode {
+  pub fn spawn(&self, spawn: &StructureSpawn) -> ReturnCode {
     let energy = spawn.room().unwrap().energy_capacity_available();
 
     let body = self.expand(energy);
@@ -169,12 +468,47 @@ impl Role {
 
   /// Spawn the minimum of each role
   pub fn spawn_min(spawn: &StructureSpawn) -> bool {
-    todo!("{}", spawn.id().to_string())
+    use Role::*;
+    let room = spawn.room().unwrap();
+    let total_energy = room.energy_capacity_available();
+    // Enumerate the roles to have at least 1 of
+    let roles = [
+      if total_energy >= Miner.cost() { Miner } else { Harvester },
+      if total_energy >= Miner.cost() { Lorry } else { Harvester },
+      Upgrader,
+      Repairer,
+      Builder,
+      WallRepairer,
+      Soldier,
+      Healer,
+    ];
+
+    for role in roles.to_vec() {
+      let creeps = room.creeps_with_role(role);
+      if creeps.len() == 0 {
+        role.spawn(spawn);
+        return true;
+      }
+    }
+
+    false
   }
 
   /// Spawn any specials or extras
   pub fn spawn_extras(spawn: &StructureSpawn) -> ReturnCode {
-    todo!("{}", spawn.id().to_string())
+    // These are case by case extra creeps that need spawned
+    use Role::*;
+    let room = spawn.room().unwrap();
+
+    // Scouting: We should scout if there is a scout flag out
+    if let Some(_) = game::flags::get("scout") {
+      // And if we haven't already spawned a scout
+      if room.creeps_with_role(Scout).len() == 0 {
+        return Scout.spawn(spawn);
+      }
+    }
+
+    ReturnCode::Full
   }
 }
 
@@ -184,4 +518,57 @@ fn cost(body: &Vec<Part>) -> u32 {
     cost += part.cost();
   }
   cost
+}
+
+fn upgrade(creep: &Creep) -> ReturnCode {
+  let ctrl = creep.room().unwrap().controller().unwrap() as StructureController;
+  if let Some(sign) = ctrl.sign() {
+    if sign.username == creep.owner_name() {
+      return creep.go_upgrade_controller(&ctrl);
+    }
+  }
+
+  creep.go_sign_controller(&ctrl)
+}
+
+fn get_energy(creep: &Creep) -> ReturnCode {
+  // first pickup loose resources
+  if let Some(t) = creep.pos().find_pickup_target(Some(Energy)) {
+    return creep.go_pickup(&t);
+  }
+
+  // next find a withdraw target
+  if let Some(t) = creep.pos().find_withdraw_target_primary(Some(Energy)) {
+    // is it a structure?
+    if let Some(t) = t.as_structure() {
+      return creep.go_withdraw_from_structure(&t, Energy, None);
+    }
+    // how about a Ruin?
+    if let Some(t) = t.as_ruin() {
+      return creep.go_withdraw(&t, Energy, None);
+    }
+    // Tombstone?
+    if let Some(t) = t.as_tombstone() {
+      return creep.go_withdraw(&t, Energy, None);
+    }
+  }
+
+  // finally go to an active source only if there are no miners and you have a work part
+  let room = creep.room().unwrap();
+  if room.creeps_with_role(Role::Miner).len() > 0
+    || creep.get_active_bodyparts(Part::Work) == 0
+  {
+    error!("Creep can't find energy: {}", creep.name());
+    return ReturnCode::NoBodypart;
+  }
+
+  if let Some(t) = creep.pos().find_harvest_target::<Source>(Some(Energy)) {
+    return creep.go_harvest(&t);
+  }
+  // if we can't find a source try salvaging
+  if let Some(t) = creep.pos().find_dismantle_target() {
+    return creep.go_dismantle(&t);
+  }
+  error!("Creep can't find any energy!");
+  ReturnCode::NotEnough
 }

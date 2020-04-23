@@ -51,10 +51,11 @@ pub trait Finder {
     resource: Option<ResourceType>,
   ) -> Option<Resource>;
   /// A withdraw target we should pull from first
-  fn find_withdraw_target_primary<T: Withdrawable + ReferenceType>(
+  fn find_withdraw_target_primary(
     &self,
     resource: Option<ResourceType>,
-  ) -> Option<T>;
+  ) -> Option<RoomObject>;
+
   /// A withdraw target we should only pull from last
   fn find_withdraw_target_secondary(
     &self,
@@ -70,6 +71,8 @@ pub trait Finder {
   /// Things that require Attack or Ranged Attack part
   /// Attacking
   fn find_attack_target<T: Attackable + ReferenceType>(&self) -> Option<T>;
+  /// Attacking structures
+  fn find_attack_structure(&self) -> Option<OwnedStructure>;
   /// Should we use a ranged_mass_attack?
   fn should_mass_attack(&self) -> bool;
   /// Find a good rally position
@@ -394,10 +397,10 @@ impl Finder for Position {
     }
   }
 
-  fn find_withdraw_target_primary<T: Withdrawable + ReferenceType>(
+  fn find_withdraw_target_primary(
     &self,
     resource: Option<ResourceType>,
-  ) -> Option<T> {
+  ) -> Option<RoomObject> {
     let mut targets: Vec<RoomObject> = self
       .find(find::TOMBSTONES)
       .into_iter()
@@ -440,11 +443,7 @@ impl Finder for Position {
       }
     }
 
-    if let Some(target) = self.find_closest_by_path(targets) {
-      target.as_ref().clone().downcast()
-    } else {
-      None
-    }
+    self.find_closest_by_path(targets)
   }
 
   fn find_withdraw_target_secondary(
@@ -544,6 +543,16 @@ impl Finder for Position {
     } else {
       None
     }
+  }
+
+  fn find_attack_structure(&self) -> Option<OwnedStructure> {
+    let mut targets = vec![];
+
+    for target in self.find(find::HOSTILE_STRUCTURES) {
+      targets.push(target);
+    }
+
+    self.find_closest_by_path(targets)
   }
 
   fn should_mass_attack(&self) -> bool {

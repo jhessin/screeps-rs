@@ -13,6 +13,8 @@ pub enum Keys {
   Role,
   /// The key for holding the username
   Username,
+  /// The key for whether the creep is working or not
+  Working,
 }
 
 /// A wrapper for the appropriate values
@@ -27,6 +29,8 @@ pub enum Values {
   Role(Role),
   /// Username
   Username(String),
+  /// Is the creep working
+  Working(bool),
 }
 
 /// Shortcuts for setting values in memory
@@ -60,6 +64,9 @@ impl ValueSet for MemoryReference {
       Values::Username(d) => {
         self.set(&to_string(&Keys::Username).expect("Invalid Key"), d)
       }
+      Values::Working(d) => {
+        self.set(&to_string(&Keys::Working).expect("Invalid Key"), d)
+      }
     }
     self
   }
@@ -90,6 +97,10 @@ impl ValueSet for MemoryReference {
         }
       }
       Keys::Username => return Some(Values::Username(result_str)),
+      Keys::Working => {
+        let data = self.bool(&to_string(&Keys::Working).expect("Invalid Key"));
+        return Some(Values::Working(data));
+      }
     }
     None
   }
