@@ -1,0 +1,4 @@
+#!/usr/bin/env zsh
+
+gclone screeps-game-api
+cargo install cargo-edit cargo-watch cargo-screeps
