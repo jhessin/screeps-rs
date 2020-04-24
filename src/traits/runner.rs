@@ -242,7 +242,7 @@ impl Runner for Structure {
       Structure::KeeperLair(_) => ReturnCode::Ok,
       Structure::Lab(_) => ReturnCode::Ok,
       Structure::Link(link) => {
-        if link.store_free_capacity(None) > 0 {
+        if link.store_free_capacity(Some(Energy)) > 0 {
           // Don't worry about links that aren't full
           return ReturnCode::Ok;
         }

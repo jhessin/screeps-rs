@@ -6,7 +6,7 @@ use screeps::StructureType;
 
 /// This is an enum that lists the different roles
 #[derive(
-  Serialize, Deserialize, Clone, Copy, Eq, PartialEq, Ord, PartialOrd,
+  Serialize, Deserialize, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash,
 )]
 pub enum Role {
   /// Harvest energy and place it into Extensions, Spawns, Towers, Storage
@@ -248,15 +248,8 @@ impl Role {
         if creep.working() {
           // find a transfer target
           // Should lorries deal in all resource types?
-          let mut resources = creep.store_types();
-          for i in 0..resources.len() {
-            let resource = resources[i];
-            if creep.store_used_capacity(Some(resource)) == 0 {
-              // is this even necessary?
-              info!("removing {:?} from lorry resources", resource);
-              resources.remove(i);
-            }
-          }
+          let resources = creep.store_types();
+
           for resource in resources {
             if let Some(t) =
               creep.pos().find_transfer_target_primary(Some(resource))
@@ -280,19 +273,25 @@ impl Role {
           }
         } else {
           // find dropped resources of any type
+          trace!("Lorry looking for resources");
           if let Some(t) = creep.pos().find_pickup_target(None) {
+            trace!("Lorry found a pickup target");
             creep.go_pickup(&t)
           } else if let Some(t) = creep.pos().find_withdraw_target_primary(None)
           // find withdraw targets
           {
-            if let Some(Structure::Container(t)) = t.as_structure() {
+            trace!("Lorry found a withdraw target");
+            if let Some(t) = t.as_tombstone() {
               let resource = t.store_types()[0];
-              creep.go_withdraw(&t, resource, None)
-            } else if let Some(t) = t.as_tombstone() {
-              let resource = t.store_types()[0];
+              trace!("Tombstone detected");
               creep.go_withdraw(&t, resource, None)
             } else if let Some(t) = t.as_ruin() {
               let resource = t.store_types()[0];
+              trace!("Ruin detected");
+              creep.go_withdraw(&t, resource, None)
+            } else if let Some(Structure::Container(t)) = t.as_structure() {
+              let resource = t.store_types()[0];
+              trace!("Container detected");
               creep.go_withdraw(&t, resource, None)
             } else {
               // Invalid item returned from withdraw target
@@ -302,6 +301,7 @@ impl Role {
           } else if let Some(t) =
             creep.pos().find_withdraw_target_secondary(None)
           {
+            trace!("Lorry found secondary withdraw target");
             let store = t.as_has_store().expect("find_withdraw_target_secondary returning a target without a store");
             let resource = store.store_types()[0];
             creep.go_withdraw_from_structure(&t, resource, None)
@@ -539,17 +539,17 @@ fn get_energy(creep: &Creep) -> ReturnCode {
 
   // next find a withdraw target
   if let Some(t) = creep.pos().find_withdraw_target_primary(Some(Energy)) {
-    // is it a structure?
-    if let Some(t) = t.as_structure() {
-      return creep.go_withdraw_from_structure(&t, Energy, None);
+    // Tombstone?
+    if let Some(t) = t.as_tombstone() {
+      return creep.go_withdraw(&t, Energy, None);
     }
     // how about a Ruin?
     if let Some(t) = t.as_ruin() {
       return creep.go_withdraw(&t, Energy, None);
     }
-    // Tombstone?
-    if let Some(t) = t.as_tombstone() {
-      return creep.go_withdraw(&t, Energy, None);
+    // is it a structure?
+    if let Some(t) = t.as_structure() {
+      return creep.go_withdraw_from_structure(&t, Energy, None);
     }
   }
 

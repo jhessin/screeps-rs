@@ -17,6 +17,12 @@ pub enum Keys {
   Working,
 }
 
+impl Display for Keys {
+  fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    write!(f, "{}", to_string(self).unwrap())
+  }
+}
+
 /// A wrapper for the appropriate values
 pub enum Values {
   /// The action that a creep is taking

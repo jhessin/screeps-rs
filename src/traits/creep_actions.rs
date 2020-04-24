@@ -1,4 +1,5 @@
 use crate::*;
+use screeps::ResourceType::Energy;
 
 /// CreepActions gives Creeps superpowers.
 pub trait CreepActions {
@@ -112,13 +113,7 @@ impl CreepActions for Creep {
   }
 
   fn working(&self) -> bool {
-    let working = if let Some(Values::Working(w)) =
-      self.memory().get_value(Keys::Working)
-    {
-      w
-    } else {
-      false
-    };
+    let working = self.memory().bool(&Keys::Working.to_string());
 
     if working && self.store_used_capacity(Some(ResourceType::Energy)) == 0 {
       self.memory().set_value(Values::Working(false));
@@ -129,6 +124,11 @@ impl CreepActions for Creep {
       self.memory().set_value(Values::Working(true));
       true
     } else {
+      if working {
+        trace!("{} is currently working", self.name());
+      } else {
+        trace!("{} is not working", self.name())
+      }
       working
     }
   }
@@ -144,8 +144,9 @@ impl CreepActions for Creep {
       return self.move_to(target);
     } else if code != Ok {
       let msg = format!("{} is having trouble: {:?}", self.name(), code);
-      self.say(&msg, false);
       error!("{}", &msg);
+      self.say("Help me!", false);
+      self.reset_action();
     }
     code
   }
@@ -177,6 +178,9 @@ impl CreepActions for Creep {
 
   fn go_build(&self, target: &ConstructionSite) -> ReturnCode {
     self.memory().set_value(Values::Action(Actions::Build));
+    if self.store_used_capacity(Some(Energy)) == 0 {
+      return self.reset_action();
+    }
     let code = self.build(target);
     self.travel_or_report(code, target)
   }
@@ -307,7 +311,7 @@ impl CreepActions for Creep {
   }
 
   fn go_upgrade_controller(&self, target: &StructureController) -> ReturnCode {
-    if !target.my() {
+    if !target.my() || self.store_used_capacity(Some(Energy)) == 0 {
       return self.reset_action();
     }
     self.memory().set_value(Values::Action(Actions::UpgradeController));
