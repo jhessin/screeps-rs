@@ -500,6 +500,44 @@ impl Role {
     use Role::*;
     let room = spawn.room().unwrap();
 
+    // calculate how many creeps we need
+    let creep_load = room.find(find::SOURCES).len()
+      + room
+        .find(find::STRUCTURES)
+        .into_iter()
+        .filter(|s| s.structure_type() == StructureType::Extractor)
+        .collect::<Vec<Structure>>()
+        .len();
+
+    let roles = if Miner.cost() <= room.energy_capacity_available() {
+      vec![
+        Miner,
+        Lorry,
+        Upgrader,
+        Repairer,
+        Builder,
+        WallRepairer,
+        Soldier,
+        Healer,
+      ]
+    } else {
+      vec![
+        Harvester,
+        Upgrader,
+        Repairer,
+        Builder,
+        WallRepairer,
+        Soldier,
+        Healer,
+      ]
+    };
+
+    for role in roles {
+      if room.creeps_with_role(role).len() < creep_load {
+        return role.spawn(spawn);
+      }
+    }
+
     // Scouting: We should scout if there is a scout flag out
     if let Some(_) = game::flags::get("scout") {
       // And if we haven't already spawned a scout

@@ -4,9 +4,10 @@ use std::collections::BTreeMap;
 /// This is the main game loop that runs the rest of the game.
 /// Try to keep it slim and trim.
 pub fn game_loop() {
-  time_hack("loop starting!");
+  time_hack("==============loop starting!==============");
 
   for room in game::rooms::values() {
+    dump_info(&room);
     manage_room(room);
   }
 
@@ -18,8 +19,6 @@ pub fn game_loop() {
       .expect("expected Memory.creeps format to be a regular memory object");
   }
 
-  dump_info();
-
   time_hack("Loop done!");
 }
 
@@ -30,11 +29,12 @@ pub fn time_hack(msg: &str) {
 }
 
 /// This dumps some info that is useful to the console
-pub fn dump_info() {
+pub fn dump_info(room: &Room) {
   time_hack("Starting info dump");
+  info!("Room {}:", room.name());
 
   let mut creeps: BTreeMap<Option<Role>, Vec<Creep>> = BTreeMap::new();
-  for creep in game::creeps::values() {
+  for creep in room.find(find::MY_CREEPS) {
     if let Some(Values::Role(role)) = creep.memory().get_value(Keys::Role) {
       let vec = creeps.entry(Some(role)).or_insert(vec![]);
       vec.push(creep);
@@ -52,5 +52,11 @@ pub fn dump_info() {
     }
   }
 
+  // break down current energy
+  let energy = room.energy_available();
+  let capacity = room.energy_capacity_available();
+
+  info!("{} of {} Energy available", energy, capacity);
+  info!("{} is required for mining", Role::Miner.cost());
   time_hack("Finished info dump");
 }
