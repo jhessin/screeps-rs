@@ -117,7 +117,7 @@ impl Role {
   }
 
   /// This works the role
-  pub fn run(&self, creep: &Creep) -> ReturnCode {
+  pub fn run(&self, creep: &Creeper) -> ReturnCode {
     match self {
       Role::Harvester => {
         if creep.working() {
@@ -558,7 +558,7 @@ fn cost(body: &Vec<Part>) -> u32 {
   cost
 }
 
-fn upgrade(creep: &Creep) -> ReturnCode {
+fn upgrade(creep: &Creeper) -> ReturnCode {
   let ctrl = creep.room().unwrap().controller().unwrap() as StructureController;
   if let Some(sign) = ctrl.sign() {
     if sign.username == creep.owner_name() {
@@ -569,7 +569,7 @@ fn upgrade(creep: &Creep) -> ReturnCode {
   creep.go_sign_controller(&ctrl)
 }
 
-fn get_energy(creep: &Creep) -> ReturnCode {
+fn get_energy(creep: &Creeper) -> ReturnCode {
   // first pickup loose resources
   if let Some(t) = creep.pos().find_pickup_target(Some(Energy)) {
     return creep.go_pickup(&t);

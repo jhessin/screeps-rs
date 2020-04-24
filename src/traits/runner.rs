@@ -9,7 +9,7 @@ pub trait Runner {
   fn run(&self) -> ReturnCode;
 }
 
-impl Runner for Creep {
+impl Runner for Creeper {
   fn run(&self) -> ReturnCode {
     trace!("Running creep: {}", self.name());
     if self.spawning() {
@@ -90,7 +90,7 @@ impl Runner for Creep {
 }
 
 fn run_creep_action(
-  creep: &Creep,
+  creep: &Creeper,
   action: Actions,
   target: &str,
 ) -> ReturnCode {
@@ -100,8 +100,8 @@ fn run_creep_action(
 
   match action {
     Actions::Attack => {
-      if let Some(creep) = target.as_creep() {
-        creep.go_attack(&creep)
+      if let Some(target) = target.as_creep() {
+        creep.go_attack(&target)
       } else if let Some(target) = target.as_power_creep() {
         creep.go_attack(&target)
       } else if let Some(target) = target.as_structure() {

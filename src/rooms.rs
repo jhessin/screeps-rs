@@ -6,6 +6,7 @@ pub fn manage_room(room: Room) -> ReturnCode {
 
   // run creeps
   for creep in room.find(find::MY_CREEPS) {
+    let creep = Creeper::new(creep);
     creep.run();
   }
 
