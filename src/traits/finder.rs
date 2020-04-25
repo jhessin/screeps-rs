@@ -5,6 +5,7 @@ use stdweb::ReferenceType;
 
 const ROOM_SIZE: u32 = 49;
 
+// TODO Move this into it's own struct and give Creeper an instance of it named pos?
 /// This is the finder trait for implementing methods on the Position type
 pub trait Finder {
   /// This simply finds anything in the room

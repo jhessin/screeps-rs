@@ -189,6 +189,7 @@ impl Converter for String {
   }
 }
 
+// TODO remove or improve this
 impl Converter for RoomObject {
   fn as_room_object(&self) -> Option<RoomObject> {
     Some(self.clone())
