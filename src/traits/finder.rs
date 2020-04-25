@@ -299,6 +299,19 @@ impl Finder for Position {
           .find(find::SOURCES_ACTIVE)
           .into_iter()
           .filter_map(|s| {
+            for creep in game::creeps::values() {
+              if let (
+                Some(Values::Role(Role::Miner)),
+                Some(Values::TargetId(id)),
+              ) = (
+                creep.memory().get_value(Keys::Role),
+                creep.memory().get_value(Keys::TargetId),
+              ) {
+                if id == s.id().to_string() {
+                  return None;
+                }
+              }
+            }
             trace!("id: {} found!", s.id());
             let s = s.as_ref().clone().downcast::<RoomObject>();
             trace!("Converted to room object: {}", s.is_some());
