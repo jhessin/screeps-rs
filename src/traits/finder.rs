@@ -299,15 +299,10 @@ impl Finder for Position {
           .find(find::SOURCES_ACTIVE)
           .into_iter()
           .filter_map(|s| {
-            if s.has_creep() {
-              trace!("id: {} has a creep assigned - skipping", s.id());
-              None
-            } else {
-              trace!("id: {} found!", s.id());
-              let s = s.as_ref().clone().downcast::<RoomObject>();
-              trace!("Converted to room object: {}", s.is_some());
-              s
-            }
+            trace!("id: {} found!", s.id());
+            let s = s.as_ref().clone().downcast::<RoomObject>();
+            trace!("Converted to room object: {}", s.is_some());
+            s
           })
           .collect();
         trace!("{} sources found", sources.len());

@@ -3,6 +3,7 @@ use crate::Role::Harvester;
 use crate::*;
 use screeps::ResourceType::Energy;
 use screeps::StructureType;
+use std::collections::BTreeMap;
 
 /// This is an enum that lists the different roles
 #[derive(
@@ -197,7 +198,13 @@ impl Role {
       Role::Builder => {
         if creep.working() {
           // find build target
-          if let Some(t) = creep.pos().find_build_target(None) {
+          if let Some(t) =
+            creep.pos().find_build_target(Some(StructureType::Extension))
+          {
+            creep.go_build(&t)
+          } else if let Some(t) =
+            creep.pos().find_build_target(Some(StructureType::Container))
+          {
             creep.go_build(&t)
           } else if let Some(t) = creep.pos().find_repair_target() {
             // repair next
@@ -472,20 +479,30 @@ impl Role {
     let room = spawn.room().unwrap();
     let total_energy = room.energy_capacity_available();
     // Enumerate the roles to have at least 1 of
-    let roles = [
-      if total_energy >= Miner.cost() { Miner } else { Harvester },
-      if total_energy >= Miner.cost() { Lorry } else { Harvester },
-      Upgrader,
-      Repairer,
-      Builder,
-      WallRepairer,
-      Soldier,
-      Healer,
-    ];
+    let mut roles: BTreeMap<Role, usize> = BTreeMap::new();
+    let gatherers_needed = room.find(find::SOURCES).len()
+      + room
+        .find(find::STRUCTURES)
+        .into_iter()
+        .filter(|s| s.structure_type() == StructureType::Extractor)
+        .collect::<Vec<Structure>>()
+        .len();
+    if total_energy >= Miner.cost() {
+      roles.insert(Miner, gatherers_needed);
+      roles.insert(Lorry, (total_energy / 500) as usize);
+    } else {
+      roles.insert(Harvester, gatherers_needed);
+    }
+    roles.insert(Upgrader, 1);
+    roles.insert(Repairer, 1);
+    roles.insert(Builder, 1);
+    roles.insert(WallRepairer, 1);
+    roles.insert(Soldier, if total_energy >= Soldier.cost() { 1 } else { 0 });
+    roles.insert(Healer, if total_energy >= Healer.cost() { 1 } else { 0 });
 
-    for role in roles.to_vec() {
+    for (role, count) in roles {
       let creeps = room.creeps_with_role(role);
-      if creeps.len() == 0 {
+      if creeps.len() < count {
         role.spawn(spawn);
         return true;
       }
