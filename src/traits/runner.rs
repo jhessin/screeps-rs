@@ -158,9 +158,9 @@ fn run_creep_action(
     }
     Actions::Heal => {
       if let Some(target) = target.as_creep() {
-        creep.go_heal_creep(&target)
+        creep.go_heal(&target)
       } else if let Some(target) = target.as_power_creep() {
-        creep.go_heal_power_creep(&target)
+        creep.go_heal(&target)
       } else {
         creep.reset_action()
       }

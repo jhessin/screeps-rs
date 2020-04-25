@@ -160,17 +160,10 @@ impl Creeper {
   }
 
   /// go heal a creep
-  pub fn go_heal_creep(&self, target: &Creep) -> ReturnCode {
-    if target.hits() == target.hits_max() {
-      return self.reset_action();
-    }
-    self.memory().set_value(Values::Action(Actions::Heal));
-    self.travel_or_report(self.heal(target), target)
-  }
-
-  /// go heal a power creep
-  /// TODO fold this into the go_heal method
-  pub fn go_heal_power_creep(&self, target: &PowerCreep) -> ReturnCode {
+  pub fn go_heal<T: Attackable + SharedCreepProperties + HasId>(
+    &self,
+    target: &T,
+  ) -> ReturnCode {
     if target.hits() == target.hits_max() {
       return self.reset_action();
     }

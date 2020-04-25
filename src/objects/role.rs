@@ -145,9 +145,7 @@ impl Role {
         }
 
         // first we find a minable source
-        if let Some(source) =
-          creep.pos.find_harvest_target::<Source>(Some(Energy))
-        {
+        if let Some(source) = creep.pos.find_source_target() {
           // see if there is a container near it
           if let Some(target) = source.container() {
             return if creep.pos().eq(&target.pos()) {
@@ -160,7 +158,7 @@ impl Role {
         }
 
         // If there is no source try for other resources
-        if let Some(source) = creep.pos.find_harvest_target::<Mineral>(None) {
+        if let Some(source) = creep.pos.find_mineral_target(None) {
           // see if there is a container near it
           if let Some(target) = source.container() {
             return if creep.pos().eq(&target.pos()) {
@@ -172,7 +170,7 @@ impl Role {
           return creep.go_harvest(&source);
         }
         // Or deposits?
-        if let Some(source) = creep.pos.find_harvest_target::<Deposit>(None) {
+        if let Some(source) = creep.pos.find_deposit_target(None) {
           // see if there is a container near it
           if let Some(target) = source.container() {
             return if creep.pos().eq(&target.pos()) {
@@ -283,27 +281,22 @@ impl Role {
           if let Some(t) = creep.pos.find_pickup_target(None) {
             trace!("Lorry found a pickup target");
             creep.go_pickup(&t)
-          } else if let Some(t) = creep.pos.find_withdraw_target_primary(None)
+          } else if let Some(t) = creep.pos.find_tombstone_target(None)
           // find withdraw targets
           {
-            trace!("Lorry found a withdraw target");
-            if let Some(t) = t.as_tombstone() {
-              let resource = t.store_types()[0];
-              trace!("Tombstone detected");
-              creep.go_withdraw(&t, resource, None)
-            } else if let Some(t) = t.as_ruin() {
-              let resource = t.store_types()[0];
-              trace!("Ruin detected");
-              creep.go_withdraw(&t, resource, None)
-            } else if let Some(Structure::Container(t)) = t.as_structure() {
-              let resource = t.store_types()[0];
-              trace!("Container detected");
-              creep.go_withdraw(&t, resource, None)
-            } else {
-              // Invalid item returned from withdraw target
-              error!("Invalid item from withdraw target");
-              ReturnCode::NotFound
-            }
+            let resource = t.store_types()[0];
+            trace!("Tombstone detected");
+            creep.go_withdraw(&t, resource, None)
+          } else if let Some(t) = creep.pos.find_ruin_target(None) {
+            let resource = t.store_types()[0];
+            trace!("Ruin detected");
+            creep.go_withdraw(&t, resource, None)
+          } else if let Some(Structure::Container(t)) =
+            creep.pos.find_withdraw_target_primary(None)
+          {
+            let resource = t.store_types()[0];
+            trace!("Container detected");
+            creep.go_withdraw(&t, resource, None)
           } else if let Some(t) = creep.pos.find_withdraw_target_secondary(None)
           {
             trace!("Lorry found secondary withdraw target");
@@ -375,15 +368,17 @@ impl Role {
         // find any enemies in the room
         // attack them
         // if there are no enemies find a rally point
-        if let Some(t) = creep.pos.find_attack_target::<Creep>() {
+        if let Some(t) = creep.pos.find_enemy_creeps() {
           creep.go_attack(&t)
-        } else if let Some(t) = creep.pos.find_attack_target::<PowerCreep>() {
+        } else if let Some(t) = creep.pos.find_enemy_power_creep() {
           creep.go_attack(&t)
-        } else if let Some(t) = creep.pos.find_attack_structure() {
+        } else if let Some(t) = creep.pos.find_enemy_structure() {
           creep.go_attack(&t)
         } else {
           // go to rally
-          if let Some(t) = creep.pos.find_rally_point() {
+          if let Some(t) = creep.pos.find_rampart_rally() {
+            return creep.move_to(&t);
+          } else if let Some(t) = creep.pos.find_rally_point() {
             return creep.move_to(&t);
           }
           warn!("Make sure you have a valid rally target");
@@ -396,24 +391,28 @@ impl Role {
         // find any enemies to attack if still have a ranged attack part
         // attack them
         if let Some(t) = creep.pos.find_heal_target() {
-          return creep.go_heal_creep(&t);
-        } else if let Some(t) = creep.pos.find_heal_target() {
-          return creep.go_heal_power_creep(&t);
+          if let Some(t) = t.as_creep() {
+            return creep.go_heal(&t);
+          } else if let Some(t) = t.as_power_creep() {
+            return creep.go_heal(&t);
+          }
         }
 
         if creep.get_active_bodyparts(Part::RangedAttack) > 0 {
-          if let Some(t) = creep.pos.find_attack_target::<Creep>() {
+          if let Some(t) = creep.pos.find_enemy_creeps() {
             return creep.go_attack(&t);
           }
-          if let Some(t) = creep.pos.find_attack_target::<PowerCreep>() {
+          if let Some(t) = creep.pos.find_enemy_power_creep() {
             return creep.go_attack(&t);
           }
-          if let Some(t) = creep.pos.find_attack_structure() {
+          if let Some(t) = creep.pos.find_enemy_structure() {
             return creep.go_attack(&t);
           }
         }
 
-        if let Some(t) = creep.pos.find_rally_point() {
+        if let Some(t) = creep.pos.find_rampart_rally() {
+          return creep.move_to(&t);
+        } else if let Some(t) = creep.pos.find_rally_point() {
           return creep.move_to(&t);
         }
         warn!("Make sure you have a rally");
@@ -591,34 +590,25 @@ fn get_energy(creep: &Creeper) -> ReturnCode {
   }
 
   // next find a withdraw target
+  if let Some(t) = creep.pos.find_tombstone_target(Some(Energy)) {
+    return creep.go_withdraw(&t, Energy, None);
+  }
+  // how about a Ruin?
+  if let Some(t) = creep.pos.find_ruin_target(Some(Energy)) {
+    return creep.go_withdraw(&t, Energy, None);
+  }
+  // is it a structure?
   if let Some(t) = creep.pos.find_withdraw_target_primary(Some(Energy)) {
-    // Tombstone?
-    if let Some(t) = t.as_tombstone() {
-      return creep.go_withdraw(&t, Energy, None);
-    }
-    // how about a Ruin?
-    if let Some(t) = t.as_ruin() {
-      return creep.go_withdraw(&t, Energy, None);
-    }
-    // is it a structure?
-    if let Some(t) = t.as_structure() {
-      return creep.go_withdraw_from_structure(&t, Energy, None);
-    }
+    return creep.go_withdraw_from_structure(&t, Energy, None);
   }
 
-  // finally go to an active source only if there are no miners and you have a work part
-  let room = creep.room().unwrap();
-  if room.creeps_with_role(Role::Miner).len() > 0
-    || creep.get_active_bodyparts(Part::Work) == 0
-  {
-    error!(
-      "Creep can't find energy without encroaching on a miner: {}",
-      creep.name()
-    );
+  // finally go to an active source only if you have a work part
+  if creep.get_active_bodyparts(Part::Work) == 0 {
+    error!("Creep can't find energy without a miner!: {}", creep.name());
     return ReturnCode::NoBodypart;
   }
 
-  if let Some(t) = creep.pos.find_harvest_target::<Source>(Some(Energy)) {
+  if let Some(t) = creep.pos.find_source_target() {
     return creep.go_harvest(&t);
   }
   // if we can't find a source try salvaging
