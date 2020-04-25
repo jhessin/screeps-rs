@@ -1,99 +1,40 @@
 use crate::*;
 use screeps::Part::Move;
 use screeps::StructureType;
+use std::ops::Deref;
 use stdweb::ReferenceType;
 
 const ROOM_SIZE: u32 = 49;
 
 // TODO Move this into it's own struct and give Creeper an instance of it named pos?
 /// This is the finder trait for implementing methods on the Position type
-pub trait Finder {
-  /// This simply finds anything in the room
-  fn find<T: find::FindConstant>(&self, c: T) -> Vec<T::Item>;
-
-  /// This is the missing method from typescript
-  fn find_closest_by_path<T: SizedRoomObject + HasPosition + ?Sized>(
-    &self,
-    targets: Vec<T>,
-  ) -> Option<T>;
-
-  /// These methods use up energy
-  /// A repair target
-  fn find_repair_target(&self) -> Option<Structure>;
-  /// A wall repair target
-  fn find_wall_repair_target(&self) -> Option<Structure>;
-  /// A build target
-  fn find_build_target(
-    &self,
-    structure_type: Option<StructureType>,
-  ) -> Option<ConstructionSite>;
-  /// A transferable target we should fill up first
-  fn find_transfer_target_primary(
-    &self,
-    resource: Option<ResourceType>,
-  ) -> Option<Structure>;
-  /// A transferable target we should fill up last
-  fn find_transfer_target_secondary(
-    &self,
-    resource: Option<ResourceType>,
-  ) -> Option<Structure>;
-
-  /// These things give us energy or other resources
-  /// A target to dismantle
-  fn find_dismantle_target(&self) -> Option<Structure>;
-  /// A harvest target
-  fn find_harvest_target<T: Harvestable + ReferenceType>(
-    &self,
-    resource: Option<ResourceType>,
-  ) -> Option<T>;
-  /// A pickup target
-  fn find_pickup_target(
-    &self,
-    resource: Option<ResourceType>,
-  ) -> Option<Resource>;
-  /// A withdraw target we should pull from first
-  fn find_withdraw_target_primary(
-    &self,
-    resource: Option<ResourceType>,
-  ) -> Option<RoomObject>;
-
-  /// A withdraw target we should only pull from last
-  fn find_withdraw_target_secondary(
-    &self,
-    resource: Option<ResourceType>,
-  ) -> Option<Structure>;
-
-  /// Things that require a Claim part
-  /// Claiming of course
-  fn find_claim_target(&self) -> Option<StructureController>;
-  /// reserving also requires at least 1 claim part.
-  fn find_reserve_target(&self) -> Option<StructureController>;
-
-  /// Things that require Attack or Ranged Attack part
-  /// Attacking
-  fn find_attack_target<T: Attackable + ReferenceType>(&self) -> Option<T>;
-  /// Attacking structures
-  fn find_attack_structure(&self) -> Option<OwnedStructure>;
-  /// Should we use a ranged_mass_attack?
-  fn should_mass_attack(&self) -> bool;
-  /// Find a good rally position
-  fn find_rally_point(&self) -> Option<RoomObject>;
-
-  /// Things that require a heal part
-  fn find_heal_target<T: Attackable + ReferenceType>(&self) -> Option<T>;
-
-  /// Other things
-  fn find_pull_target(&self) -> Option<Creep>;
-  /// Find a target to sign
-  fn find_sign_target(&self) -> Option<StructureController>;
+pub struct Finder {
+  /// The position that the finder is finding paths for
+  pub pos: Position,
 }
 
-impl Finder for Position {
-  fn find<T: find::FindConstant>(&self, c: T) -> Vec<T::Item> {
+impl Deref for Finder {
+  type Target = Position;
+
+  fn deref(&self) -> &Self::Target {
+    &self.pos
+  }
+}
+
+impl Finder {
+  /// Create a new finder from a game object with a position
+  pub fn new<T: HasPosition>(thing: &T) -> Self {
+    let pos = thing.pos();
+    Finder { pos }
+  }
+
+  /// find all the items in a room
+  pub fn find<T: find::FindConstant>(&self, c: T) -> Vec<T::Item> {
     self.find_in_range(c, ROOM_SIZE)
   }
 
-  fn find_closest_by_path<T: SizedRoomObject + HasPosition + ?Sized>(
+  /// find the closest item from an array of items by lowest cost path
+  pub fn find_closest_by_path<T: SizedRoomObject + HasPosition + ?Sized>(
     &self,
     targets: Vec<T>,
   ) -> Option<T> {
@@ -106,7 +47,7 @@ impl Finder for Position {
 
     for target in targets {
       let result =
-        search(self, &target, std::u32::MAX, SearchOptions::default());
+        search(&self.pos, &target, std::u32::MAX, SearchOptions::default());
       if result.incomplete {
         trace!("Couldn't find a path! cost: {}", result.cost);
       }
@@ -119,7 +60,8 @@ impl Finder for Position {
     nearest
   }
 
-  fn find_repair_target(&self) -> Option<Structure> {
+  /// Find a repair target
+  pub fn find_repair_target(&self) -> Option<Structure> {
     let targets: Vec<Structure> = self
       .find(find::MY_STRUCTURES)
       .into_iter()
@@ -142,7 +84,8 @@ impl Finder for Position {
     self.find_closest_by_path(targets)
   }
 
-  fn find_wall_repair_target(&self) -> Option<Structure> {
+  /// find the most damaged wall
+  pub fn find_wall_repair_target(&self) -> Option<Structure> {
     let mut walls: Vec<Structure> = self
       .find(find::STRUCTURES)
       .into_iter()
@@ -174,7 +117,8 @@ impl Finder for Position {
     Some(target)
   }
 
-  fn find_build_target(
+  /// find a build target
+  pub fn find_build_target(
     &self,
     structure_type: Option<StructureType>,
   ) -> Option<ConstructionSite> {
@@ -199,7 +143,8 @@ impl Finder for Position {
     None
   }
 
-  fn find_transfer_target_primary(
+  /// find a transfer target (primary)
+  pub fn find_transfer_target_primary(
     &self,
     resource: Option<ResourceType>,
   ) -> Option<Structure> {
@@ -227,7 +172,8 @@ impl Finder for Position {
     self.find_closest_by_path(targets)
   }
 
-  fn find_transfer_target_secondary(
+  /// find a transfer target (secondary)
+  pub fn find_transfer_target_secondary(
     &self,
     resource: Option<ResourceType>,
   ) -> Option<Structure> {
@@ -248,7 +194,8 @@ impl Finder for Position {
     self.find_closest_by_path(targets)
   }
 
-  fn find_dismantle_target(&self) -> Option<Structure> {
+  /// find a dismantle target
+  pub fn find_dismantle_target(&self) -> Option<Structure> {
     const DISMANTLE_PATH: &str = "dismantle";
 
     // First add targets using flags
@@ -289,7 +236,8 @@ impl Finder for Position {
     self.find_closest_by_path(targets)
   }
 
-  fn find_harvest_target<T: Harvestable + ReferenceType>(
+  /// find a harvest target
+  pub fn find_harvest_target<T: Harvestable + ReferenceType>(
     &self,
     resource: Option<ResourceType>,
   ) -> Option<T> {
@@ -395,7 +343,8 @@ impl Finder for Position {
     }
   }
 
-  fn find_pickup_target(
+  /// find a dropped resource
+  pub fn find_pickup_target(
     &self,
     resource: Option<ResourceType>,
   ) -> Option<Resource> {
@@ -420,7 +369,8 @@ impl Finder for Position {
     }
   }
 
-  fn find_withdraw_target_primary(
+  /// find a withdraw target (primary)
+  pub fn find_withdraw_target_primary(
     &self,
     resource: Option<ResourceType>,
   ) -> Option<RoomObject> {
@@ -469,7 +419,8 @@ impl Finder for Position {
     self.find_closest_by_path(targets)
   }
 
-  fn find_withdraw_target_secondary(
+  /// find a withdraw target (secondary)
+  pub fn find_withdraw_target_secondary(
     &self,
     resource: Option<ResourceType>,
   ) -> Option<Structure> {
@@ -495,7 +446,8 @@ impl Finder for Position {
     self.find_closest_by_path(targets)
   }
 
-  fn find_claim_target(&self) -> Option<StructureController> {
+  /// find a claimable room
+  pub fn find_claim_target(&self) -> Option<StructureController> {
     for room in game::rooms::values() {
       if let Some(ctrl) = room.controller() as Option<StructureController> {
         if !ctrl.my() && !ctrl.has_owner() {
@@ -516,7 +468,8 @@ impl Finder for Position {
     None
   }
 
-  fn find_reserve_target(&self) -> Option<StructureController> {
+  /// find a reservable room
+  pub fn find_reserve_target(&self) -> Option<StructureController> {
     let username = if let Some(Values::Username(u)) =
       screeps::memory::root().get_value(Keys::Username)
     {
@@ -540,7 +493,8 @@ impl Finder for Position {
     None
   }
 
-  fn find_attack_target<T: Attackable + ReferenceType>(&self) -> Option<T> {
+  /// find an attackable target
+  pub fn find_attack_target<T: Attackable + ReferenceType>(&self) -> Option<T> {
     let mut targets = self
       .find(find::HOSTILE_CREEPS)
       .into_iter()
@@ -568,7 +522,8 @@ impl Finder for Position {
     }
   }
 
-  fn find_attack_structure(&self) -> Option<OwnedStructure> {
+  /// find an attackable structure
+  pub fn find_attack_structure(&self) -> Option<OwnedStructure> {
     let mut targets = vec![];
 
     for target in self.find(find::HOSTILE_STRUCTURES) {
@@ -578,14 +533,16 @@ impl Finder for Position {
     self.find_closest_by_path(targets)
   }
 
-  fn should_mass_attack(&self) -> bool {
+  /// should a creep mass attack?
+  pub fn should_mass_attack(&self) -> bool {
     self.find_in_range(find::HOSTILE_CREEPS, 3).len()
       + self.find_in_range(find::HOSTILE_POWER_CREEPS, 3).len()
       + self.find_in_range(find::HOSTILE_STRUCTURES, 3).len()
       > 1
   }
 
-  fn find_rally_point(&self) -> Option<RoomObject> {
+  /// find a rally point
+  pub fn find_rally_point(&self) -> Option<RoomObject> {
     let ramparts: Vec<StructureRampart> = self
       .find(find::MY_STRUCTURES)
       .into_iter()
@@ -609,7 +566,8 @@ impl Finder for Position {
     None
   }
 
-  fn find_heal_target<T: Attackable + ReferenceType>(&self) -> Option<T> {
+  /// find a heal target
+  pub fn find_heal_target<T: Attackable + ReferenceType>(&self) -> Option<T> {
     let mut targets = self
       .find(find::MY_CREEPS)
       .into_iter()
@@ -644,7 +602,8 @@ impl Finder for Position {
     }
   }
 
-  fn find_pull_target(&self) -> Option<Creep> {
+  /// find a pull target
+  pub fn find_pull_target(&self) -> Option<Creep> {
     let targets = self
       .find(find::MY_CREEPS)
       .into_iter()
@@ -657,40 +616,6 @@ impl Finder for Position {
       })
       .collect::<Vec<Creep>>();
     self.find_closest_by_path(targets)
-  }
-
-  fn find_sign_target(&self) -> Option<StructureController> {
-    let username = if let Some(Values::Username(u)) =
-      screeps::memory::root().get_value(Keys::Username)
-    {
-      u
-    } else {
-      panic!("Username not found in memory!")
-    };
-    for room in game::rooms::values() {
-      if let Some(ctrl) = room.controller() as Option<StructureController> {
-        if let Some(sign) = ctrl.sign() {
-          if sign.username == username {
-            // Don't resign
-            return None;
-          }
-          if ctrl.my() {
-            // Sign it if it's yours.
-            return Some(ctrl);
-          }
-          if !ctrl.has_owner() && ctrl.reservation().is_none() {
-            // Sign it if it isn't owned or reserved
-            return Some(ctrl);
-          }
-          if let Some(res) = ctrl.reservation() {
-            if res.username == username {
-              return Some(ctrl);
-            }
-          }
-        }
-      }
-    }
-    None
   }
 }
 

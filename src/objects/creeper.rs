@@ -5,6 +5,8 @@ use std::ops::Deref;
 /// CreepActions gives Creeps superpowers.
 pub struct Creeper {
   creep: Creep,
+  /// The finder used for finding targets
+  pub pos: Finder,
 }
 
 impl Deref for Creeper {
@@ -18,7 +20,8 @@ impl Deref for Creeper {
 impl Creeper {
   /// Create a new Creeper from a Creep
   pub fn new(creep: Creep) -> Creeper {
-    Creeper { creep }
+    let pos = Finder::new(&creep);
+    Creeper { creep, pos }
   }
 
   /// Reset the creep's action
