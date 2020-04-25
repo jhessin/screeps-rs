@@ -5,6 +5,9 @@ use crate::*;
 pub trait HasCreep {
   /// Returns true if the source has a miner assigned to it.
   fn has_creep(&self) -> bool;
+
+  /// Returns if a creep with a specific role is assigned
+  fn has_creep_with_role(&self, role: Role) -> bool;
 }
 
 impl<T: HasId + RoomObjectProperties> HasCreep for T {
@@ -15,6 +18,21 @@ impl<T: HasId + RoomObjectProperties> HasCreep for T {
         creep.memory().get_value(Keys::TargetId)
       {
         if id == self.id().to_string() {
+          return true;
+        }
+      }
+    }
+    false
+  }
+
+  fn has_creep_with_role(&self, role: Role) -> bool {
+    let room = if let Some(r) = self.room() { r } else { return false };
+    for creep in room.find(find::MY_CREEPS) as Vec<Creep> {
+      if let (Some(Values::Role(r)), Some(Values::TargetId(id))) = (
+        creep.memory().get_value(Keys::Role),
+        creep.memory().get_value(Keys::TargetId),
+      ) {
+        if role == r && id == self.id().to_string() {
           return true;
         }
       }
