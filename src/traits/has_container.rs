@@ -10,19 +10,22 @@ pub trait HasContainer {
 
 impl<T: RoomObjectProperties> HasContainer for T {
   fn container(&self) -> Option<StructureContainer> {
-    let mut containers: Vec<StructureContainer> =
-      self
-        .pos()
-        .find_in_range(find::STRUCTURES, 1)
-        .into_iter()
-        .filter_map(|s| {
-          if let Structure::Container(c) = s {
+    let mut containers: Vec<StructureContainer> = self
+      .pos()
+      .find_in_range(find::STRUCTURES, 1)
+      .into_iter()
+      .filter_map(|s| {
+        if let Structure::Container(c) = s {
+          if c.store_free_capacity(None) > 0 {
             Some(c)
           } else {
             None
           }
-        })
-        .collect();
+        } else {
+          None
+        }
+      })
+      .collect();
 
     containers.pop()
   }

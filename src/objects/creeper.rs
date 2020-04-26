@@ -1,5 +1,4 @@
 use crate::*;
-use screeps::ResourceType::Energy;
 use std::ops::Deref;
 
 /// CreepActions gives Creeps superpowers.
@@ -30,8 +29,6 @@ impl Creeper {
     self.memory().rm_value(Keys::TargetId);
     self.memory().rm_value(Keys::Resource);
     self.memory().rm_value(Keys::Action);
-    let working = !self.working();
-    self.memory().set_value(Values::Working(working));
 
     ReturnCode::InvalidTarget
   }
@@ -40,7 +37,21 @@ impl Creeper {
   pub fn working(&self) -> bool {
     let working = self.memory().bool(&Keys::Working.to_string());
 
-    if working && self.store_used_capacity(Some(ResourceType::Energy)) == 0 {
+    // special case for lorries
+    if let Some(Values::Role(Role::Lorry)) = self.memory().get_value(Keys::Role)
+    {
+      if working && self.store_used_capacity(None) == 0 {
+        self.memory().set_value(Values::Working(false));
+        false
+      } else if !working && self.store_free_capacity(None) == 0 {
+        self.memory().set_value(Values::Working(true));
+        true
+      } else {
+        working
+      }
+    } else if working
+      && self.store_used_capacity(Some(ResourceType::Energy)) == 0
+    {
       self.memory().set_value(Values::Working(false));
       false
     } else if !working
@@ -119,6 +130,17 @@ impl Creeper {
     self.travel_or_report(code, target)
   }
 
+  /// Cleanup claim target
+  pub fn cleanup_claim(&self) -> ReturnCode {
+    if let Some(flag) = game::flags::get("claim") {
+      // remove the flag if necessary
+      flag.remove();
+    }
+    // cleanup the memory
+    root().rm_value(Keys::Claim);
+    ReturnCode::Ok
+  }
+
   /// Go claim a controller
   pub fn go_claim_controller(
     &self,
@@ -128,7 +150,11 @@ impl Creeper {
       return self.reset_action();
     }
     self.memory().set_value(Values::Action(Actions::ClaimController));
-    self.travel_or_report(self.claim_controller(target), target)
+    let code = self.claim_controller(target);
+    if code == ReturnCode::Ok {
+      self.cleanup_claim();
+    }
+    self.travel_or_report(code, target)
   }
 
   /// go dismantle a target

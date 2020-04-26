@@ -1,5 +1,4 @@
 use crate::*;
-use std::collections::BTreeMap;
 
 /// This is the main game loop that runs the rest of the game.
 /// Try to keep it slim and trim.
@@ -13,6 +12,10 @@ pub fn game_loop() {
 
   let time = screeps::game::time();
 
+  for flag in game::flags::values() {
+    flag.run();
+  }
+
   if time % 32 == 3 {
     info!("running memory cleanup");
     cleanup_memory()
@@ -24,7 +27,7 @@ pub fn game_loop() {
 
 /// This is a quick and easy way to get a time-hack at any point in the program.
 pub fn time_hack(msg: &str) {
-  let _time = screeps::game::cpu::get_used();
+  let _time = game::cpu::get_used();
   info!("{} CPU: {}", msg, _time);
 }
 

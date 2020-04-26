@@ -1,9 +1,5 @@
 //! The role is the role that a creep will take.
-use crate::Role::Harvester;
 use crate::*;
-use screeps::ResourceType::Energy;
-use screeps::StructureType;
-use std::collections::BTreeMap;
 
 /// This is an enum that lists the different roles
 #[derive(
@@ -44,6 +40,7 @@ pub enum Role {
   Soldier,
   /// A healer
   Healer,
+  // TODO Create Mineral Lorry
 }
 
 /// This gives me to_string functionality for easy debugging
@@ -57,21 +54,20 @@ impl Display for Role {
 impl Role {
   /// Returns the appropriate body for this role as well as if it should be expanded.
   pub fn body(&self) -> Vec<Part> {
-    use Part::*;
     match self {
       Role::Harvester => vec![Work, Carry, Move, Move],
       Role::Miner => vec![Move, Work, Work, Work, Work, Work],
-      Role::Upgrader => vec![Work, Carry, Move, Move],
-      Role::Builder => vec![Work, Carry, Move, Move],
-      Role::Repairer => vec![Work, Carry, Move, Move],
-      Role::WallRepairer => vec![Work, Carry, Move, Move],
-      Role::Lorry => vec![Carry, Move],
-      Role::LinkLoader => vec![Carry, Carry, Move, Move],
+      Role::Upgrader => vec![Work, Carry, Move],
+      Role::Builder => vec![Work, Carry, Move],
+      Role::Repairer => vec![Work, Carry, Move],
+      Role::WallRepairer => vec![Work, Carry, Move],
+      Role::Lorry => vec![Carry, Carry, Move],
+      Role::LinkLoader => vec![Carry, Carry, Move],
       Role::Claimer => vec![Move, Move, Move, Move, Move, Claim],
       Role::Reserver => vec![Move, Move, Move, Move, Move, Claim],
       Role::Scout => vec![Move],
-      Role::Soldier => vec![Attack, RangedAttack, Move, Move, Move],
-      Role::Healer => vec![RangedAttack, Heal, Move, Move],
+      Role::Soldier => vec![Attack, RangedAttack, Move],
+      Role::Healer => vec![RangedAttack, Heal, Move],
     }
   }
 
@@ -140,7 +136,7 @@ impl Role {
       Role::Miner => {
         // if there is a miner all harvesters must DIE
         let room = creep.room().unwrap();
-        for creep in room.creeps_with_role(Harvester) {
+        for creep in room.creeps_with_role(Role::Harvester) {
           creep.suicide();
         }
 
@@ -281,21 +277,23 @@ impl Role {
             }
           }
 
-          // see if we can upgrade?
+          // see if we can offload to workers?
           warn!("Lorry can't find anywhere to put it's resources");
           if creep.store_used_capacity(Some(Energy)) > 0 {
-            upgrade(creep)
+            if let Some(t) = creep.pos.find_lazy_creep() {
+              creep.go_transfer(&t, ResourceType::Energy, None)
+            } else {
+              // We're doing good if nobody needs energy
+              ReturnCode::Ok
+            }
           } else {
-            warn!("lorry has no energy to upgrade");
+            warn!("lorry has no energy to offload");
             ReturnCode::NotEnough
           }
         } else {
           // find dropped resources of any type
           trace!("Lorry looking for resources");
-          if let Some(t) = creep.pos.find_pickup_target(None) {
-            trace!("Lorry found a pickup target");
-            creep.go_pickup(&t)
-          } else if let Some(t) = creep.pos.find_tombstone_target(None)
+          if let Some(t) = creep.pos.find_tombstone_target(None)
           // find withdraw targets
           {
             let resource = t.store_types()[0];
@@ -311,6 +309,9 @@ impl Role {
             let resource = t.store_types()[0];
             trace!("Container detected");
             creep.go_withdraw(&t, resource, None)
+          } else if let Some(t) = creep.pos.find_pickup_target(None) {
+            trace!("Lorry found a pickup target");
+            creep.go_pickup(&t)
           } else if let Some(t) = creep.pos.find_withdraw_target_secondary(None)
           {
             trace!("Lorry found secondary withdraw target");
@@ -346,7 +347,7 @@ impl Role {
           } else {
             // No links
             warn!("Link loader can't find any links to load");
-            ReturnCode::Full
+            Role::Lorry.run(creep)
           }
         } else {
           get_energy(creep)
@@ -355,7 +356,29 @@ impl Role {
       Role::Claimer => {
         // find a claim target
         if let Some(t) = creep.pos.find_claim_target() {
-          creep.go_claim_controller(&t)
+          if creep.pos().room_name() == t {
+            // in the right room go to the controller
+            let room = creep.room().unwrap();
+            if let Some(ctrl) = room.controller() {
+              // go claim it!
+              creep.go_claim_controller(&ctrl)
+            } else {
+              // Room doesn't have a controller invalid claim
+              // cleanup
+              creep.cleanup_claim()
+            }
+          } else {
+            // not in the right room - find it!
+            let room = creep.room().unwrap();
+            if let Ok(exit) = game::map::find_exit(room.name(), t) {
+              let t = room.find(find::Exit::from(exit));
+              return creep.move_to(&t[0]);
+            } else {
+              // invalid exit? report and cleanup
+              warn!("Claimer can't find a path to the exit!");
+              creep.cleanup_claim()
+            }
+          }
         } else {
           // Nothing to claim
           Role::Scout.run(creep)
@@ -416,7 +439,7 @@ impl Role {
           }
         }
 
-        if creep.get_active_bodyparts(Part::RangedAttack) > 0 {
+        if creep.get_active_bodyparts(RangedAttack) > 0 {
           if let Some(t) = creep.pos.find_enemy_creeps() {
             return creep.go_attack(&t);
           }
@@ -505,11 +528,12 @@ impl Role {
         .len();
     if total_energy >= Miner.cost() {
       roles.insert(Miner, gatherers_needed);
-      roles.insert(Lorry, (total_energy / 500) as usize);
+      roles.insert(Lorry, gatherers_needed);
     } else {
       roles.insert(Harvester, gatherers_needed);
     }
     roles.insert(Upgrader, 1);
+    roles.insert(LinkLoader, room.get_structures(StructureType::Link).len());
     roles.insert(Repairer, 1);
     roles.insert(Builder, 1);
     roles.insert(WallRepairer, 1);
@@ -565,17 +589,14 @@ impl Role {
       ]
     };
 
+    // Claim if necessary
+    if root().get_value(Keys::Claim).is_some() {
+      return Role::Claimer.spawn(spawn);
+    }
+
     for role in roles {
       if room.creeps_with_role(role).len() < creep_load {
         return role.spawn(spawn);
-      }
-    }
-
-    // Scouting: We should scout if there is a scout flag out
-    if let Some(_) = game::flags::get("scout") {
-      // And if we haven't already spawned a scout
-      if room.creeps_with_role(Scout).len() == 0 {
-        return Scout.spawn(spawn);
       }
     }
 
@@ -622,7 +643,7 @@ fn get_energy(creep: &Creeper) -> ReturnCode {
   }
 
   // finally go to an active source only if you have a work part
-  if creep.get_active_bodyparts(Part::Work) == 0 {
+  if creep.get_active_bodyparts(Work) == 0 {
     error!("Creep can't find energy without a miner!: {}", creep.name());
     return ReturnCode::NoBodypart;
   }

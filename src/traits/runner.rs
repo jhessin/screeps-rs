@@ -1,7 +1,4 @@
 use crate::*;
-use screeps::game::market::{Order, OrderType};
-use screeps::MarketResourceType;
-use screeps::ResourceType::Energy;
 
 /// This trait allows things to run!
 pub trait Runner {
@@ -149,7 +146,15 @@ fn run_creep_action(
       if let Some(target) = target.as_source() {
         creep.go_harvest(&target)
       } else if let Some(target) = target.as_mineral() {
-        creep.go_harvest(&target)
+        if let Some(t) = target.extractor() {
+          if t.cooldown() == 0 {
+            creep.go_harvest(&target)
+          } else {
+            ReturnCode::Busy
+          }
+        } else {
+          creep.reset_action()
+        }
       } else if let Some(target) = target.as_deposit() {
         creep.go_harvest(&target)
       } else {
@@ -211,6 +216,9 @@ fn run_creep_action(
       if let Some(Values::Resource(resource)) =
         creep.memory().get_value(Keys::Resource)
       {
+        if let Some(t) = target.as_creep() {
+          return creep.go_transfer(&t, resource, None);
+        }
         if let Some(target) = target.as_structure() {
           return creep.go_transfer_to_structure(&target, resource, None);
         }
@@ -234,7 +242,9 @@ fn run_creep_action(
       creep.reset_action()
     }
     Actions::Travel => {
-      if let Some(t) = target.as_room_object() {
+      if let Some(t) = target.as_flag() {
+        creep.move_to(&t)
+      } else if let Some(t) = target.as_room_object() {
         creep.move_to(&t)
       } else {
         creep.reset_action()
@@ -398,5 +408,20 @@ impl Runner for Structure {
       }
       Structure::Wall(_) => ReturnCode::Ok,
     }
+  }
+}
+
+impl Runner for Flag {
+  fn run(&self) -> ReturnCode {
+    trace!("Flag found with name: {}", self.name());
+
+    match self.name().as_str() {
+      "claim" => {
+        root().set_value(Values::Claim(self.pos().room_name().to_string()));
+      }
+      _ => (),
+    }
+
+    ReturnCode::Ok
   }
 }

@@ -1,11 +1,8 @@
 use crate::*;
-use screeps::Part::Move;
-use screeps::StructureType;
 use std::ops::Deref;
 
 const ROOM_SIZE: u32 = 49;
 
-// TODO Move this into it's own struct and give Creeper an instance of it named pos?
 /// This is the finder trait for implementing methods on the Position type
 pub struct Finder {
   /// The position that the finder is finding paths for
@@ -222,6 +219,23 @@ impl Finder {
     self.find_closest_by_path(targets)
   }
 
+  /// find creep that needs energy
+  pub fn find_lazy_creep(&self) -> Option<Creep> {
+    let creeps = self
+      .find(find::MY_CREEPS)
+      .into_iter()
+      .filter(|s| {
+        if s.get_active_bodyparts(Part::Carry) == 0 {
+          return false;
+        }
+        let creep = Creeper::new(s.clone());
+        !creep.working()
+      })
+      .collect::<Vec<Creep>>();
+
+    self.find_closest_by_path(creeps)
+  }
+
   /// find a dismantle target
   pub fn find_dismantle_target(&self) -> Option<Structure> {
     const DISMANTLE_PATH: &str = "dismantle";
@@ -229,22 +243,19 @@ impl Finder {
     // First add targets using flags
     if let Some(flag) = game::flags::get(DISMANTLE_PATH) {
       if let Some(s) = flag.pos().find_in_range(find::STRUCTURES, 0).get(0) {
-        let mut arr = if let Ok(Some(arr)) =
-          screeps::memory::root().path_arr(DISMANTLE_PATH)
-        {
+        let mut arr = if let Ok(Some(arr)) = root().path_arr(DISMANTLE_PATH) {
           arr as Vec<String>
         } else {
           vec![]
         };
         arr.push(s.id().to_string());
-        screeps::memory::root().path_set(DISMANTLE_PATH, arr);
+        root().path_set(DISMANTLE_PATH, arr);
       }
     }
 
     // Get the closest target
     let mut targets: Vec<Structure> = vec![];
-    if let Ok(Some(mut target_ids)) =
-      screeps::memory::root().path_arr::<String>(DISMANTLE_PATH)
+    if let Ok(Some(mut target_ids)) = root().path_arr::<String>(DISMANTLE_PATH)
     {
       for id in target_ids.clone() {
         if let Ok(target) = ObjectId::<Structure>::from_str(&id) {
@@ -256,7 +267,7 @@ impl Finder {
         } else {
           // invalid target remove from memory
           target_ids.remove(id.parse().unwrap());
-          screeps::memory::root().path_set(DISMANTLE_PATH, target_ids.clone());
+          root().path_set(DISMANTLE_PATH, target_ids.clone());
         }
       }
     }
@@ -297,14 +308,18 @@ impl Finder {
           return false;
         } else if let Some(resource) = resource {
           if resource == s.mineral_type() {
-            if s.pos().find_in_range(find::STRUCTURES, 0).len() > 0 {
+            if !s.has_creep_with_role(Role::Miner)
+              && s.pos().find_in_range(find::STRUCTURES, 0).len() > 0
+            {
               trace!("Mineral has an extractor - mining");
               return true;
             }
             trace!("Mineral has no extractor - skipping");
           }
         } else {
-          if s.pos().find_in_range(find::STRUCTURES, 0).len() > 0 {
+          if !s.has_creep_with_role(Role::Miner)
+            && s.pos().find_in_range(find::STRUCTURES, 0).len() > 0
+          {
             trace!("Mineral has an extractor - mining");
             return true;
           }
@@ -465,22 +480,10 @@ impl Finder {
   }
 
   /// find a claimable room
-  pub fn find_claim_target(&self) -> Option<StructureController> {
-    for room in game::rooms::values() {
-      if let Some(ctrl) = room.controller() as Option<StructureController> {
-        if !ctrl.my() && !ctrl.has_owner() {
-          if let Some(res) = ctrl.reservation() {
-            if let Some(Values::Username(username)) =
-              screeps::memory::root().get_value(Keys::Username)
-            {
-              if res.username == username {
-                return Some(ctrl);
-              }
-            }
-          } else {
-            return Some(ctrl);
-          }
-        }
+  pub fn find_claim_target(&self) -> Option<RoomName> {
+    if let Some(Values::Claim(name_str)) = root().get_value(Keys::Claim) {
+      if let Ok(name) = RoomName::from_str(&name_str) {
+        return Some(name);
       }
     }
     None
@@ -488,13 +491,12 @@ impl Finder {
 
   /// find a reservable room
   pub fn find_reserve_target(&self) -> Option<StructureController> {
-    let username = if let Some(Values::Username(u)) =
-      screeps::memory::root().get_value(Keys::Username)
-    {
-      u
-    } else {
-      panic!("Username not found in memory!")
-    };
+    let username =
+      if let Some(Values::Username(u)) = root().get_value(Keys::Username) {
+        u
+      } else {
+        panic!("Username not found in memory!")
+      };
     for room in game::rooms::values() {
       if let Some(ctrl) = room.controller() as Option<StructureController> {
         if ctrl.my() {
@@ -545,7 +547,9 @@ impl Finder {
       .filter_map(|s| {
         let s = s.as_structure() as Structure;
         if let Structure::Rampart(s) = s {
-          return if s.has_creep_with_role(Role::Soldier) {
+          return if s.has_creep_with_role(Role::Soldier)
+            || s.has_creep_with_role(Role::Healer)
+          {
             None
           } else {
             Some(s)

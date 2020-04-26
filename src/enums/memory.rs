@@ -3,6 +3,8 @@ use crate::*;
 /// This holds all the memory keys that I will use. Simply use a to_str or json::from_str on them
 #[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub enum Keys {
+  /// The keys for creep memory
+
   /// The action that a creep is taking
   Action,
   /// The target of the action
@@ -11,10 +13,15 @@ pub enum Keys {
   Resource,
   /// The key for the role of the creep
   Role,
-  /// The key for holding the username
-  Username,
   /// The key for whether the creep is working or not
   Working,
+
+  /// These are keys for other memory paths
+
+  /// The key for holding the username
+  Username,
+  /// The Path for the target room for claiming
+  Claim,
 }
 
 impl Display for Keys {
@@ -25,6 +32,8 @@ impl Display for Keys {
 
 /// A wrapper for the appropriate values
 pub enum Values {
+  /// The keys for creep memory
+
   /// The action that a creep is taking
   Action(Actions),
   /// The target that the creep is using
@@ -33,10 +42,16 @@ pub enum Values {
   Resource(ResourceType),
   /// The Value for the Role
   Role(Role),
-  /// Username
-  Username(String),
   /// Is the creep working
   Working(bool),
+
+  /// Values for other memory paths
+
+  /// Username
+  Username(String),
+
+  /// The path for a room to be claimed
+  Claim(String),
 }
 
 /// Shortcuts for setting values in memory
@@ -73,6 +88,9 @@ impl ValueSet for MemoryReference {
       Values::Working(d) => {
         self.set(&to_string(&Keys::Working).expect("Invalid Key"), d)
       }
+      Values::Claim(d) => {
+        self.set(&to_string(&Keys::Claim).expect("Invalid Key"), d)
+      }
     }
     self
   }
@@ -107,6 +125,7 @@ impl ValueSet for MemoryReference {
         let data = self.bool(&to_string(&Keys::Working).expect("Invalid Key"));
         return Some(Values::Working(data));
       }
+      Keys::Claim => return Some(Values::Claim(result_str)),
     }
     None
   }

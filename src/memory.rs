@@ -4,7 +4,7 @@ use crate::*;
 pub fn cleanup_memory() -> std::result::Result<(), Box<dyn std::error::Error>> {
   // Get all of the creeps that are still alive
   let alive_creeps: HashSet<String> =
-    screeps::game::creeps::keys().into_iter().collect();
+    game::creeps::keys().into_iter().collect();
 
   // Get all of the creeps in the memory.
   let screeps_memory = match screeps::memory::root().dict("creeps")? {
