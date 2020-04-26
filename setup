@@ -2,3 +2,6 @@
 
 gclone screeps-game-api
 cargo install cargo-edit cargo-watch cargo-screeps
+mkdir public private
+cp ./example-screeps.toml public/screeps.toml
+cp ./example-screeps.toml private/screeps.toml
