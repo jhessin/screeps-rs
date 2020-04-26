@@ -221,11 +221,24 @@ fn run_creep_action(
       if let Some(Values::Resource(resource)) =
         creep.memory().get_value(Keys::Resource)
       {
-        if let Some(target) = target.as_structure() {
-          return creep.go_withdraw_from_structure(&target, resource, None);
+        if let Some(t) = target.as_tombstone() {
+          return creep.go_withdraw(&t, resource, None);
+        }
+        if let Some(t) = target.as_ruin() {
+          return creep.go_withdraw(&t, resource, None);
+        }
+        if let Some(t) = target.as_structure() {
+          return creep.go_withdraw_from_structure(&t, resource, None);
         }
       }
       creep.reset_action()
+    }
+    Actions::Travel => {
+      if let Some(t) = target.as_room_object() {
+        creep.move_to(&t)
+      } else {
+        creep.reset_action()
+      }
     }
   }
 }

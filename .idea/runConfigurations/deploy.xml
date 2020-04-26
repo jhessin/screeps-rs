@@ -1,15 +1,13 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="deploy" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
-    <option name="channel" value="DEFAULT" />
-    <option name="command" value="screeps deploy" />
-    <option name="allFeatures" value="false" />
-    <option name="nocapture" value="false" />
-    <option name="emulateTerminal" value="false" />
-    <option name="backtrace" value="SHORT" />
-    <option name="workingDirectory" value="file://$PROJECT_DIR$" />
-    <envs />
-    <method v="2">
-      <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
-    </method>
+  <configuration default="false" name="deploy" type="ShConfigurationType" activateToolWindowBeforeRun="false">
+    <option name="INDEPENDENT_SCRIPT_PATH" value="true" />
+    <option name="SCRIPT_PATH" value="$PROJECT_DIR$/deploy" />
+    <option name="SCRIPT_OPTIONS" value="" />
+    <option name="INDEPENDENT_SCRIPT_WORKING_DIRECTORY" value="true" />
+    <option name="SCRIPT_WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <option name="INDEPENDENT_INTERPRETER_PATH" value="true" />
+    <option name="INTERPRETER_PATH" value="/usr/bin/zsh" />
+    <option name="INTERPRETER_OPTIONS" value="" />
+    <method v="2" />
   </configuration>
 </component>

@@ -30,6 +30,8 @@ impl Creeper {
     self.memory().rm_value(Keys::TargetId);
     self.memory().rm_value(Keys::Resource);
     self.memory().rm_value(Keys::Action);
+    let working = !self.working();
+    self.memory().set_value(Values::Working(working));
 
     ReturnCode::InvalidTarget
   }
@@ -66,7 +68,7 @@ impl Creeper {
     self.memory().set_value(Values::TargetId(target.id().to_string()));
     if code == NotInRange {
       return self.move_to(target);
-    } else if code != Ok {
+    } else if code != Ok && code != Tired {
       let msg = format!("{} is having trouble: {:?}", self.name(), code);
       error!("{}", &msg);
       self.say("Help me!", false);

@@ -269,13 +269,14 @@ impl Finder {
     let sources: Vec<Source> = self
       .find(find::SOURCES_ACTIVE)
       .into_iter()
-      .filter_map(|s| {
+      .filter(|s| {
         if s.has_creep_with_role(Role::Miner) {
           trace!("id: {} has a miner - skipping", s.id().to_string());
-          return None;
+          return false;
+        } else {
+          trace!("id: {} found!", s.id());
+          true
         }
-        trace!("id: {} found!", s.id());
-        Some(s)
       })
       .collect();
     trace!("{} sources found", sources.len());
@@ -287,20 +288,29 @@ impl Finder {
     &self,
     resource: Option<ResourceType>,
   ) -> Option<Mineral> {
+    trace!("Searching for a Mineral target for: {:?}", resource);
     let targets: Vec<Mineral> = self
       .find(find::MINERALS)
       .into_iter()
-      .filter_map(|s: Mineral| {
+      .filter(|s| {
         if s.has_creep_with_role(Role::Miner) {
-          return None;
+          return false;
         } else if let Some(resource) = resource {
           if resource == s.mineral_type() {
             if s.pos().find_in_range(find::STRUCTURES, 0).len() > 0 {
-              return Some(s);
+              trace!("Mineral has an extractor - mining");
+              return true;
             }
+            trace!("Mineral has no extractor - skipping");
           }
+        } else {
+          if s.pos().find_in_range(find::STRUCTURES, 0).len() > 0 {
+            trace!("Mineral has an extractor - mining");
+            return true;
+          }
+          trace!("Mineral has no extractor - skipping");
         }
-        None
+        false
       })
       .collect();
 
@@ -316,16 +326,18 @@ impl Finder {
     let targets: Vec<Deposit> = self
       .find(find::DEPOSITS)
       .into_iter()
-      .filter_map(|s: Deposit| {
+      .filter(|s| {
         if s.has_creep_with_role(Role::Miner) {
-          return None;
+          return false;
         }
         if let Some(resource) = resource {
           if s.deposit_type() == resource {
-            return Some(s);
+            return s.cooldown() == 0;
           }
+        } else {
+          return s.cooldown() == 0;
         }
-        None
+        false
       })
       .collect();
 
@@ -341,7 +353,7 @@ impl Finder {
       self
         .find(find::DROPPED_RESOURCES)
         .into_iter()
-        .filter(|s| s.resource_type() == resource && !s.has_creep())
+        .filter(|s| s.resource_type() == resource && s.amount() > 50)
         .collect()
     } else {
       self
@@ -414,7 +426,7 @@ impl Finder {
       .into_iter()
       .filter_map(|s| {
         if let Structure::Container(c) = &s {
-          if c.store_used_capacity(resource) > 0 {
+          if c.store_used_capacity(resource) > 0 && !c.has_creep() {
             return Some(s);
           }
         }
@@ -533,7 +545,11 @@ impl Finder {
       .filter_map(|s| {
         let s = s.as_structure() as Structure;
         if let Structure::Rampart(s) = s {
-          return if s.has_creep() { None } else { Some(s) };
+          return if s.has_creep_with_role(Role::Soldier) {
+            None
+          } else {
+            Some(s)
+          };
         }
         None
       })

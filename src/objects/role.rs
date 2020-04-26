@@ -146,10 +146,11 @@ impl Role {
 
         // first we find a minable source
         if let Some(source) = creep.pos.find_source_target() {
+          trace!("Source target found: {}", source.id().to_string());
           // see if there is a container near it
           if let Some(target) = source.container() {
             return if creep.pos().eq(&target.pos()) {
-              creep.harvest(&source)
+              creep.go_harvest(&source)
             } else {
               creep.move_to(&target)
             };
@@ -158,9 +159,12 @@ impl Role {
         }
 
         // If there is no source try for other resources
+        trace!("Searching for mineral target");
         if let Some(source) = creep.pos.find_mineral_target(None) {
           // see if there is a container near it
+          trace!("Mineral found!");
           if let Some(target) = source.container() {
+            trace!("Container found!");
             return if creep.pos().eq(&target.pos()) {
               creep.harvest(&source)
             } else {
@@ -203,6 +207,8 @@ impl Role {
             creep.pos.find_build_target(Some(StructureType::Container))
           {
             creep.go_build(&t)
+          } else if let Some(t) = creep.pos.find_build_target(None) {
+            creep.go_build(&t)
           } else if let Some(t) = creep.pos.find_repair_target() {
             // repair next
             creep.go_repair(&t)
@@ -219,6 +225,14 @@ impl Role {
           // find repair target
           if let Some(t) = creep.pos.find_repair_target() {
             creep.go_repair(&t)
+          } else if let Some(t) =
+            creep.pos.find_build_target(Some(StructureType::Container))
+          {
+            creep.go_build(&t)
+          } else if let Some(t) =
+            creep.pos.find_build_target(Some(StructureType::Road))
+          {
+            creep.go_build(&t)
           } else {
             upgrade(creep)
           }
@@ -377,8 +391,12 @@ impl Role {
         } else {
           // go to rally
           if let Some(t) = creep.pos.find_rampart_rally() {
+            creep.memory().set_value(Values::Action(Actions::Travel));
+            creep.memory().set_value(Values::TargetId(t.id().to_string()));
             return creep.move_to(&t);
           } else if let Some(t) = creep.pos.find_rally_point() {
+            creep.memory().set_value(Values::Action(Actions::Travel));
+            creep.memory().set_value(Values::TargetId(t.name()));
             return creep.move_to(&t);
           }
           warn!("Make sure you have a valid rally target");
@@ -446,6 +464,7 @@ impl Role {
     let opts = SpawnOptions::new()
       .memory(MemoryReference::new().set_value(Values::Role(*self)));
 
+    info!("Spawning {} with body {:?} and role {}", &name, &body, self);
     spawn.spawn_creep_with_options(&body, &name, &opts)
   }
 

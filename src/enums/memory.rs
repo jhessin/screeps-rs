@@ -156,6 +156,8 @@ pub enum Actions {
   Transfer,
   /// Withdraw the indicated resource
   Withdraw,
+  /// Travel to a destination
+  Travel,
 }
 
 impl Display for Actions {
