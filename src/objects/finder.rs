@@ -517,27 +517,54 @@ impl Finder {
 
   /// find an attackable target
   pub fn find_enemy_creeps(&self) -> Option<Creep> {
-    let targets = self.find(find::HOSTILE_CREEPS);
+    let targets = self
+      .find(find::HOSTILE_CREEPS)
+      .into_iter()
+      .filter(|s| s.owner_name() != "Saruss")
+      .collect::<Vec<_>>();
     self.find_closest_by_path(targets)
   }
   /// find an attackable power creep
   pub fn find_enemy_power_creep(&self) -> Option<PowerCreep> {
-    let targets = self.find(find::HOSTILE_POWER_CREEPS);
+    let targets = self
+      .find(find::HOSTILE_POWER_CREEPS)
+      .into_iter()
+      .filter(|s| s.owner_name() != "Saruss")
+      .collect::<Vec<_>>();
     self.find_closest_by_path(targets)
   }
 
   /// find an attackable structure
   pub fn find_enemy_structure(&self) -> Option<OwnedStructure> {
-    let targets = self.find(find::HOSTILE_STRUCTURES);
+    let targets = self
+      .find(find::HOSTILE_STRUCTURES)
+      .into_iter()
+      .filter(|s| s.owner_name() != Some(String::from("Saruss")))
+      .collect::<Vec<_>>();
 
     self.find_closest_by_path(targets)
   }
 
   /// should a creep mass attack?
   pub fn should_mass_attack(&self) -> bool {
-    self.find_in_range(find::HOSTILE_CREEPS, 3).len()
-      + self.find_in_range(find::HOSTILE_POWER_CREEPS, 3).len()
-      + self.find_in_range(find::HOSTILE_STRUCTURES, 3).len()
+    self
+      .find_in_range(find::HOSTILE_CREEPS, 3)
+      .into_iter()
+      .filter(|s| s.owner_name() != "Saruss")
+      .collect::<Vec<_>>()
+      .len()
+      + self
+        .find_in_range(find::HOSTILE_POWER_CREEPS, 3)
+        .into_iter()
+        .filter(|s| s.owner_name() != "Saruss")
+        .collect::<Vec<_>>()
+        .len()
+      + self
+        .find_in_range(find::HOSTILE_STRUCTURES, 3)
+        .into_iter()
+        .filter(|s| s.owner_name() != Some(String::from("Saruss")))
+        .collect::<Vec<_>>()
+        .len()
       > 1
   }
 
