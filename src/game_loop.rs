@@ -12,10 +12,6 @@ pub fn game_loop() {
 
   let time = screeps::game::time();
 
-  for flag in game::flags::values() {
-    flag.run();
-  }
-
   if time % 32 == 3 {
     info!("running memory cleanup");
     cleanup_memory()
@@ -36,24 +32,24 @@ pub fn dump_info(room: &Room) {
   time_hack("Starting info dump");
   info!("Room {}:", room.name());
 
-  let mut creeps: BTreeMap<Role, Vec<Creeper>> = BTreeMap::new();
-  for creep in room.find(find::MY_CREEPS) {
-    let creep = Creeper::new(creep);
-    let role = creep.role();
-    let vec = creeps.entry(role).or_insert(vec![]);
-    vec.push(creep);
-  }
+  // let mut creeps: BTreeMap<Role, Vec<Creeper>> = BTreeMap::new();
+  // for creep in room.find(find::MY_CREEPS) {
+  // let creep = Creeper::new(creep);
+  // let role = creep.role();
+  // let vec = creeps.entry(role).or_insert(vec![]);
+  // vec.push(creep);
+  // }
 
-  for (role, creeps) in creeps {
-    let creeps = creeps.into_iter().map(|s| s.name()).collect::<Vec<String>>();
-    info!("{} Creeps: {:?}", role, creeps);
-  }
+  // for (role, creeps) in creeps {
+  //   let creeps = creeps.into_iter().map(|s| s.name()).collect::<Vec<String>>();
+  //   info!("{} Creeps: {:?}", role, creeps);
+  // }
 
   // break down current energy
   let energy = room.energy_available();
   let capacity = room.energy_capacity_available();
 
   info!("{} of {} Energy available", energy, capacity);
-  info!("{} is required for mining", Role::Miner.cost());
+  // info!("{} is required for mining", Role::Miner.cost());
   time_hack("Finished info dump");
 }

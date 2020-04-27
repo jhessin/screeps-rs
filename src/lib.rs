@@ -35,24 +35,20 @@ pub use serde::{Deserialize, Serialize};
 /// If we want to use js
 pub use stdweb::js;
 
-pub use enums::*;
 pub use game_loop::*;
 pub use init::*;
 pub use memory::*;
 /// My modules
 pub use names::*;
-pub use objects::*;
 pub use rooms::*;
 pub use traits::*;
 
 /// access the logging module
 pub mod logging;
 
-mod enums;
 mod game_loop;
 mod init;
 mod memory;
 mod names;
-mod objects;
 mod rooms;
 mod traits;

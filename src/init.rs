@@ -5,12 +5,12 @@ pub fn init() {
   logging::setup_logging(logging::Info);
 
   // set my username as a memory object
-  if let Some(Values::Username(_)) = root().get_value(Keys::Username) {
+  if let Ok(Some(_)) = root().string("Username") {
     ()
   } else {
     if let Some(spawn) = game::spawns::values().get(0) {
       let username = spawn.owner_name().unwrap();
-      root().set_value(Values::Username(username));
+      root().set("Username", username);
     }
   }
 }
