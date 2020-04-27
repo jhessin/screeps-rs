@@ -86,6 +86,7 @@ impl Finder {
     nearest
   }
 
+  /// TODO Replace all these with go_repair()... etc. Inside the Creeper module
   /// Find a repair target
   pub fn find_repair_target(&self) -> Option<Structure> {
     let targets: Vec<Structure> = self

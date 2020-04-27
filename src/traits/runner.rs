@@ -6,6 +6,7 @@ pub trait Runner {
   fn run(&self) -> ReturnCode;
 }
 
+/// TODO Move this into the creeper
 impl Runner for Creeper {
   fn run(&self) -> ReturnCode {
     trace!("Running creep: {}", self.name());
@@ -26,6 +27,7 @@ impl Runner for Creeper {
   }
 }
 
+/// TODO Move this into the creeper
 fn run_creep_action(
   creep: &Creeper,
   action: Actions,
@@ -208,6 +210,7 @@ fn run_creep_action(
     }
   }
 }
+
 impl Runner for Structure {
   fn run(&self) -> ReturnCode {
     match self {
