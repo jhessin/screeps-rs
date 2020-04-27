@@ -7,40 +7,39 @@ use crate::*;
 )]
 pub enum Role {
   /// Harvest energy and place it into Extensions, Spawns, Towers, Storage
-  /// fallback: -> Upgrader
   Harvester,
   /// Mine from source and drop on the ground on into a container.
   Miner,
+  /// Ferries resources from containers or the ground and places it in
+  /// Extensions, Spawns, Towers, or Storage
+  Lorry,
+  // TODO Create Mineral Lorry
   /// Upgrade the room controller
   Upgrader,
-  /// Builds anything it finds except walls or ramparts
-  /// fallback: -> Repair -> Upgrader
-  Builder,
   /// Repairs anything damaged except walls or ramparts
   /// fallback: -> Upgrader
   Repairer,
+  /// Builds anything it finds except walls or ramparts
+  Builder,
+  /// Harvest from remote room
+  RemoteHarvester,
   /// Builds walls and ramparts
   /// Repairs the most damaged wall or rampart
-  /// fallback: -> Upgrader
   WallRepairer,
-  /// Ferries resources from containers or the ground and places it in
-  /// Extensions, Spawns, Towers, or Storage
-  /// fallback: -> Repair -> Upgrader
-  Lorry,
   /// Ferries resources to links
-  /// fallback: -> Repair -> Upgrader
   LinkLoader,
-  /// This is a claimer to claim new rooms
-  Claimer,
-  /// A reserve new rooms
-  Reserver,
   /// A scout
   Scout,
   /// A soldier
   Soldier,
   /// A healer
   Healer,
-  // TODO Create Mineral Lorry
+  /// This is a claimer to claim new rooms
+  Claimer,
+  /// Build remote structures
+  RemoteBuilder,
+  /// A reserve new rooms
+  Reserver,
 }
 
 /// This gives me to_string functionality for easy debugging
@@ -59,6 +58,7 @@ impl Role {
       Role::Miner => vec![Move, Work, Work, Work, Work, Work],
       Role::Upgrader => vec![Work, Carry, Move],
       Role::Builder => vec![Work, Carry, Move],
+      Role::RemoteBuilder => vec![Work, Carry, Move],
       Role::Repairer => vec![Work, Carry, Move],
       Role::WallRepairer => vec![Work, Carry, Move],
       Role::Lorry => vec![Carry, Carry, Move],
@@ -68,6 +68,7 @@ impl Role {
       Role::Scout => vec![Move],
       Role::Soldier => vec![Attack, RangedAttack, Move],
       Role::Healer => vec![RangedAttack, Heal, Move],
+      Role::RemoteHarvester => vec![Work, Carry, Move],
     }
   }
 
@@ -134,39 +135,22 @@ impl Role {
         }
       }
       Role::Miner => {
-        // if there is a miner all harvesters must DIE
+        // if there is a miner all harvesters must become remote
         let room = creep.room().unwrap();
         for creep in room.creeps_with_role(Role::Harvester) {
-          creep.suicide();
+          creep.memory().set_value(Values::Role(Role::RemoteHarvester));
         }
 
         // first we find a minable source
         if let Some(source) = creep.pos.find_source_target() {
           trace!("Source target found: {}", source.id().to_string());
-          // see if there is a container near it
-          if let Some(target) = source.container() {
-            return if creep.pos().eq(&target.pos()) {
-              creep.go_harvest(&source)
-            } else {
-              creep.move_to(&target)
-            };
-          }
           return creep.go_harvest(&source);
         }
 
         // If there is no source try for other resources
         trace!("Searching for mineral target");
         if let Some(source) = creep.pos.find_mineral_target(None) {
-          // see if there is a container near it
           trace!("Mineral found!");
-          if let Some(target) = source.container() {
-            trace!("Container found!");
-            return if creep.pos().eq(&target.pos()) {
-              creep.harvest(&source)
-            } else {
-              creep.move_to(&target)
-            };
-          }
           return creep.go_harvest(&source);
         }
         // Or deposits?
@@ -292,28 +276,54 @@ impl Role {
           }
         } else {
           // find dropped resources of any type
+          let mut targets: Vec<String> = vec![];
           trace!("Lorry looking for resources");
+          if let Some(t) = creep.pos.find_pickup_target(None) {
+            trace!("Lorry found a pickup target");
+            targets.push(t.id().to_string());
+          }
           if let Some(t) = creep.pos.find_tombstone_target(None)
           // find withdraw targets
           {
-            let resource = t.store_types()[0];
             trace!("Tombstone detected");
-            creep.go_withdraw(&t, resource, None)
-          } else if let Some(t) = creep.pos.find_ruin_target(None) {
-            let resource = t.store_types()[0];
+            targets.push(t.id().to_string());
+          }
+          if let Some(t) = creep.pos.find_ruin_target(None) {
             trace!("Ruin detected");
-            creep.go_withdraw(&t, resource, None)
-          } else if let Some(Structure::Container(t)) =
+            targets.push(t.id().to_string());
+          }
+          if let Some(Structure::Container(t)) =
             creep.pos.find_withdraw_target_primary(None)
           {
-            let resource = t.store_types()[0];
             trace!("Container detected");
-            creep.go_withdraw(&t, resource, None)
-          } else if let Some(t) = creep.pos.find_pickup_target(None) {
-            trace!("Lorry found a pickup target");
-            creep.go_pickup(&t)
-          } else if let Some(t) = creep.pos.find_withdraw_target_secondary(None)
-          {
+            targets.push(t.id().to_string());
+          }
+
+          if let Some(t) = creep.pos.find_closest_id_by_path(targets) {
+            if let Some(t) = t.as_resource() {
+              trace!("Lorry found a pickup target: {}", t.id().to_string());
+              return creep.go_pickup(&t);
+            }
+            if let Some(t) = t.as_tombstone() {
+              // find withdraw targets
+              let resource = t.store_types()[0];
+              trace!("Tombstone detected");
+              return creep.go_withdraw(&t, resource, None);
+            }
+            if let Some(t) = t.as_ruin() {
+              let resource = t.store_types()[0];
+              trace!("Ruin detected");
+              return creep.go_withdraw(&t, resource, None);
+            }
+            if let Some(t) = t.as_structure() {
+              if let Some(store) = t.as_has_store() {
+                let resource = store.store_types()[0];
+                trace!("Container detected");
+                return creep.go_withdraw_from_structure(&t, resource, None);
+              }
+            }
+          }
+          if let Some(t) = creep.pos.find_withdraw_target_secondary(None) {
             trace!("Lorry found secondary withdraw target");
             let store = t.as_has_store().expect("find_withdraw_target_secondary returning a target without a store");
             let resource = store.store_types()[0];
@@ -355,7 +365,7 @@ impl Role {
       }
       Role::Claimer => {
         // find a claim target
-        if let Some(t) = creep.pos.find_claim_target() {
+        if let Some(t) = creep.target_room() {
           if creep.pos().room_name() == t {
             // in the right room go to the controller
             let room = creep.room().unwrap();
@@ -369,15 +379,7 @@ impl Role {
             }
           } else {
             // not in the right room - find it!
-            let room = creep.room().unwrap();
-            if let Ok(exit) = game::map::find_exit(room.name(), t) {
-              let t = room.find(find::Exit::from(exit));
-              return creep.move_to(&t[0]);
-            } else {
-              // invalid exit? report and cleanup
-              warn!("Claimer can't find a path to the exit!");
-              creep.cleanup_claim()
-            }
+            creep.go_to_room(t)
           }
         } else {
           // Nothing to claim
@@ -386,8 +388,8 @@ impl Role {
       }
       Role::Reserver => {
         // find a reserve target
-        if let Some(t) = creep.pos.find_reserve_target() {
-          creep.go_reserve_controller(&t)
+        if let Some(t) = creep.target_room() {
+          creep.go_reserve_controller(t)
         } else {
           Role::Scout.run(creep)
         }
@@ -413,12 +415,14 @@ impl Role {
           creep.go_attack(&t)
         } else {
           // go to rally
-          if let Some(t) = creep.pos.find_rampart_rally() {
-            creep.memory().set_value(Values::Action(Actions::Travel));
+          if let Some(target_room) = creep.target_room() {
+            if creep.pos().room_name() != target_room {
+              return creep.go_to_room(target_room);
+            }
+          } else if let Some(t) = creep.pos.find_rampart_rally() {
             creep.memory().set_value(Values::TargetId(t.id().to_string()));
             return creep.move_to(&t);
           } else if let Some(t) = creep.pos.find_rally_point() {
-            creep.memory().set_value(Values::Action(Actions::Travel));
             creep.memory().set_value(Values::TargetId(t.name()));
             return creep.move_to(&t);
           }
@@ -459,6 +463,35 @@ impl Role {
         warn!("Make sure you have a rally");
         ReturnCode::NotFound
       }
+      Role::RemoteHarvester => {
+        let home_room = creep.home_room();
+        let target_room = if let Some(t) = creep.target_room() {
+          t
+        } else {
+          error!("Remote Harvester needs a target room!");
+          return Role::Harvester.run(creep);
+        };
+
+        if creep.working() {
+          if creep.pos().room_name() == home_room {
+            // we are in the right room act like a harvester
+            Role::Harvester.run(creep)
+          } else {
+            // we are in the wrong room
+            // go home
+            creep.go_to_room(home_room)
+          }
+        } else {
+          if creep.pos().room_name() == target_room {
+            // we are in the right room act like a harvester
+            Role::Harvester.run(creep)
+          } else {
+            // we need to get to the target room
+            creep.go_to_room(target_room)
+          }
+        }
+      }
+      Role::RemoteBuilder => todo!(),
     }
   }
 
@@ -470,8 +503,12 @@ impl Role {
 
     let name = get_random_name(spawn.room().unwrap());
 
-    let opts = SpawnOptions::new()
-      .memory(MemoryReference::new().set_value(Values::Role(*self)));
+    let room = spawn.room().unwrap();
+    let opts = SpawnOptions::new().memory(
+      MemoryReference::new()
+        .set_value(Values::Role(*self))
+        .set_value(Values::HomeRoom(room.name())),
+    );
 
     spawn.spawn_creep_with_options(&body, &name, &opts)
   }
@@ -497,7 +534,8 @@ impl Role {
     let room = spawn.room().unwrap();
 
     use Role::*;
-    if room.creeps_with_role(Lorry).len() == 0
+    if (room.creeps_with_role(Lorry).len() == 0
+      || room.creeps_with_role(Miner).len() == 0)
       && room.creeps_with_role(Harvester).len() == 0
     {
       // No harvesters or lorries
@@ -526,17 +564,33 @@ impl Role {
         .filter(|s| s.structure_type() == StructureType::Extractor)
         .collect::<Vec<Structure>>()
         .len();
-    if total_energy >= Miner.cost() {
+    if total_energy >= Miner.cost()
+      && room.get_structures(StructureType::Container).len() > 0
+    {
       roles.insert(Miner, gatherers_needed);
-      roles.insert(Lorry, gatherers_needed);
+      roles.insert(Lorry, 1);
     } else {
       roles.insert(Harvester, gatherers_needed);
     }
+    roles.insert(
+      RemoteHarvester,
+      if game::flags::get("remote").is_some() { 1 } else { 0 },
+    );
+    roles
+      .insert(Claimer, if game::flags::get("claim").is_some() { 1 } else { 0 });
+    roles.insert(
+      RemoteBuilder,
+      if game::flags::get("claim").is_some() { 1 } else { 0 },
+    );
+    roles.insert(
+      Reserver,
+      if game::flags::get("reserve").is_some() { 1 } else { 0 },
+    );
     roles.insert(Upgrader, 1);
     roles.insert(LinkLoader, room.get_structures(StructureType::Link).len());
-    roles.insert(Repairer, 1);
+    roles.insert(Repairer, 3);
     roles.insert(Builder, 1);
-    roles.insert(WallRepairer, 1);
+    roles.insert(WallRepairer, 2);
     roles.insert(Soldier, if total_energy >= Soldier.cost() { 1 } else { 0 });
     roles.insert(Healer, if total_energy >= Healer.cost() { 1 } else { 0 });
 
@@ -625,21 +679,38 @@ fn upgrade(creep: &Creeper) -> ReturnCode {
 
 fn get_energy(creep: &Creeper) -> ReturnCode {
   // first pickup loose resources
+  let mut targets: Vec<String> = vec![];
   if let Some(t) = creep.pos.find_pickup_target(Some(Energy)) {
-    return creep.go_pickup(&t);
+    targets.push(t.id().to_string())
   }
 
   // next find a withdraw target
   if let Some(t) = creep.pos.find_tombstone_target(Some(Energy)) {
-    return creep.go_withdraw(&t, Energy, None);
+    targets.push(t.id().to_string())
   }
   // how about a Ruin?
   if let Some(t) = creep.pos.find_ruin_target(Some(Energy)) {
-    return creep.go_withdraw(&t, Energy, None);
+    targets.push(t.id().to_string())
   }
   // is it a structure?
   if let Some(t) = creep.pos.find_withdraw_target_primary(Some(Energy)) {
-    return creep.go_withdraw_from_structure(&t, Energy, None);
+    targets.push(t.id().to_string())
+  }
+
+  if let Some(t) = creep.pos.find_closest_id_by_path(targets) {
+    // check for resources, structures, etc.
+    if let Some(t) = t.as_resource() {
+      return creep.go_pickup(&t);
+    }
+    if let Some(t) = t.as_tombstone() {
+      return creep.go_withdraw(&t, Energy, None);
+    }
+    if let Some(t) = t.as_ruin() {
+      return creep.go_withdraw(&t, Energy, None);
+    }
+    if let Some(t) = t.as_structure() {
+      return creep.go_withdraw_from_structure(&t, Energy, None);
+    }
   }
 
   // finally go to an active source only if you have a work part

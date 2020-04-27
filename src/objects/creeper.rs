@@ -8,6 +8,11 @@ pub struct Creeper {
   pub pos: Finder,
 }
 
+impl Display for Creeper {
+  fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    write!(f, "{}", self.creep.name())
+  }
+}
 impl Deref for Creeper {
   type Target = Creep;
 
@@ -69,6 +74,134 @@ impl Creeper {
     }
   }
 
+  /// This quickly gets the creeps role
+  pub fn role(&self) -> Role {
+    if let Some(Values::Role(r)) = self.memory().get_value(Keys::Role) {
+      r
+    } else {
+      warn!("Creep found with no role! {}", self.name());
+
+      use Part::*;
+      let role =
+        if self.get_active_bodyparts(Move) == 1 && self.body().len() == 1 {
+          trace!("{} only has a move part assigning scout", self.name());
+          Role::Scout
+        } else if self.get_active_bodyparts(Carry) == 0
+          && self.get_active_bodyparts(Work) > 0
+        {
+          trace!(
+            "{} has no carry part but has work part assigning Miner",
+            self.name()
+          );
+          Role::Miner
+        } else if self.get_active_bodyparts(Work) == 0
+          && self.get_active_bodyparts(Carry) > 0
+        {
+          trace!(
+            "{} has no Work part but can carry assigning Lorry",
+            self.name()
+          );
+          Role::Lorry
+        } else if self.get_active_bodyparts(Work) > 0
+          && self.get_active_bodyparts(Carry) > 0
+        {
+          trace!("{} has Work and Carry - Assigning Upgrader", self.name());
+          Role::Upgrader
+        } else if self.get_active_bodyparts(Heal) > 0 {
+          trace!("{} has a heal part - Assigning Healer", self.name());
+          Role::Healer
+        } else if self.get_active_bodyparts(Attack) > 0
+          || self.get_active_bodyparts(RangedAttack) > 0
+        {
+          trace!("{} has attack parts - Assigning Soldier", self.name());
+          Role::Soldier
+        } else if self.get_active_bodyparts(Claim) > 0 {
+          trace!("{} has a claim part - Assigning Reserver", self.name());
+          Role::Reserver
+        } else {
+          // Assign role based on first body part
+          trace!("{} only has a move part assigning scout", self.name());
+          match self.body()[0].part {
+            Move => Role::Scout,
+            Work => Role::Miner,
+            Carry => Role::Lorry,
+            Attack => Role::Soldier,
+            RangedAttack => Role::Soldier,
+            Tough => Role::Scout,
+            Heal => Role::Healer,
+            Claim => Role::Reserver,
+          }
+        };
+
+      self.memory().set_value(Values::Role(role));
+      role
+    }
+  }
+
+  /// This is a quicker way to get TargetId
+  pub fn target_id(&self) -> Option<String> {
+    if let Some(Values::TargetId(id)) = self.memory().get_value(Keys::TargetId)
+    {
+      Some(id)
+    } else {
+      None
+    }
+  }
+
+  /// This is a quickery way to get the target room
+  pub fn target_room(&self) -> Option<RoomName> {
+    if let Some(Values::TargetRoom(id)) =
+      self.memory().get_value(Keys::TargetRoom)
+    {
+      Some(id)
+    } else {
+      None
+    }
+  }
+
+  /// Get the Home Room
+  pub fn home_room(&self) -> RoomName {
+    if let Some(Values::HomeRoom(name)) =
+      self.memory().get_value(Keys::HomeRoom)
+    {
+      name
+    } else {
+      let room = self.pos().room_name();
+      self.memory().set_value(Values::HomeRoom(room));
+      room
+    }
+  }
+
+  /// This gets the resource that the creep is working in
+  pub fn resource(&self) -> Option<ResourceType> {
+    if let Some(Values::Resource(resource)) =
+      self.memory().get_value(Keys::Resource)
+    {
+      Some(resource)
+    } else {
+      None
+    }
+  }
+
+  /// This gets the assigned action more quickly
+  pub fn action(&self) -> Option<Actions> {
+    if let Some(Values::Action(action)) = self.memory().get_value(Keys::Action)
+    {
+      Some(action)
+    } else {
+      None
+    }
+  }
+
+  /// TODO Make this more like Traveler
+  pub fn travel_to<T: RoomObjectProperties + HasId>(
+    &self,
+    target: &T,
+  ) -> ReturnCode {
+    self.memory().set_value(Values::TargetId(target.id().to_string()));
+    self.move_to(target)
+  }
+
   /// Travel to or report on errors
   pub fn travel_or_report<T: RoomObjectProperties + HasId>(
     &self,
@@ -76,9 +209,8 @@ impl Creeper {
     target: &T,
   ) -> ReturnCode {
     use ReturnCode::*;
-    self.memory().set_value(Values::TargetId(target.id().to_string()));
     if code == NotInRange {
-      return self.move_to(target);
+      return self.travel_to(target);
     } else if code != Ok && code != Tired {
       let msg = format!("{} is having trouble: {:?}", self.name(), code);
       error!("{}", &msg);
@@ -96,7 +228,6 @@ impl Creeper {
   }
 
   /// Go attack Structure
-  /// TODO fold this into go_attack
   pub fn go_attack_structure(&self, target: &Structure) -> ReturnCode {
     let attack = if let Some(target) = target.as_attackable() {
       target
@@ -139,6 +270,18 @@ impl Creeper {
     // cleanup the memory
     root().rm_value(Keys::Claim);
     ReturnCode::Ok
+  }
+
+  /// Go to room from RoomName
+  pub fn go_to_room(&self, name: RoomName) -> ReturnCode {
+    let room = self.room().unwrap();
+    if let Ok(exit) = game::map::find_exit(room.name(), name) {
+      let t = room.find(find::Exit::from(exit));
+      return self.move_to(&t[0]);
+    } else {
+      // invalid exit?
+      ReturnCode::InvalidArgs
+    }
   }
 
   /// Go claim a controller
@@ -253,21 +396,32 @@ impl Creeper {
   }
 
   /// Go reserve a controller
-  pub fn go_reserve_controller(
-    &self,
-    target: &StructureController,
-  ) -> ReturnCode {
-    if target.my() {
-      return self.reset_action();
-    }
-    if let Some(reservation) = target.reservation() {
-      if reservation.username == self.owner_name() {
-        return self.reset_action();
+  pub fn go_reserve_controller(&self, target: RoomName) -> ReturnCode {
+    if self.pos().room_name() == target {
+      // in the right room
+      if let Some(target) = self.room().unwrap().controller() {
+        self.memory().set_value(Values::Action(Actions::ReserveController));
+        self.travel_or_report(self.reserve_controller(&target), &target)
+      } else {
+        // room has no controller reset flag
+        if let Some(flag) = game::flags::get("reserve") {
+          flag.remove();
+        }
+        // get home_room
+        let home_room = if let Some(Values::HomeRoom(hr)) =
+          self.memory().get_value(Keys::HomeRoom)
+        {
+          hr
+        } else {
+          panic!()
+        };
+        self.go_to_room(home_room);
+        self.reset_action()
       }
+    } else {
+      // not in the right room
+      self.go_to_room(target)
     }
-
-    self.memory().set_value(Values::Action(Actions::ReserveController));
-    self.travel_or_report(self.reserve_controller(target), target)
   }
 
   /// Go sign a controller
@@ -297,7 +451,6 @@ impl Creeper {
   }
 
   /// Go transfer to a structure
-  /// TODO fold and unify this
   pub fn go_transfer_to_structure(
     &self,
     target: &Structure,
@@ -354,7 +507,6 @@ impl Creeper {
   }
 
   /// Go withdraw from a structure
-  /// TODO fold and unify this
   pub fn go_withdraw_from_structure(
     &self,
     target: &Structure,

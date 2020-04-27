@@ -14,74 +14,14 @@ impl Runner for Creeper {
       return ReturnCode::Busy;
     }
 
-    if let (Some(Values::Action(action)), Some(Values::TargetId(target))) = (
-      self.memory().get_value(Keys::Action),
-      self.memory().get_value(Keys::TargetId),
-    ) {
+    if let (Some(action), Some(target)) = (self.action(), self.target_id()) {
       trace!("{} has an action already assigned: {}", self.name(), action);
       return run_creep_action(self, action, &target);
     }
 
     // time_hack(format!("Running creep: {}", creep.creep.name()).as_str());
-    if let Some(Values::Role(role)) = self.memory().get_value(Keys::Role) {
-      trace!("{} is a {}: running role", self.name(), role);
-      return role.run(self);
-    }
-
-    // INVALID ROLE!
-    trace!("{} has an invalid role", self.name());
-    use Part::*;
-    let role = if self.get_active_bodyparts(Move) == 1 && self.body().len() == 1
-    {
-      trace!("{} only has a move part assigning scout", self.name());
-      Role::Scout
-    } else if self.get_active_bodyparts(Carry) == 0
-      && self.get_active_bodyparts(Work) > 0
-    {
-      trace!(
-        "{} has no carry part but has work part assigning Miner",
-        self.name()
-      );
-      Role::Miner
-    } else if self.get_active_bodyparts(Work) == 0
-      && self.get_active_bodyparts(Carry) > 0
-    {
-      trace!("{} has no Work part but can carry assigning Lorry", self.name());
-      Role::Lorry
-    } else if self.get_active_bodyparts(Work) > 0
-      && self.get_active_bodyparts(Carry) > 0
-    {
-      trace!("{} has Work and Carry - Assigning Upgrader", self.name());
-      Role::Upgrader
-    } else if self.get_active_bodyparts(Heal) > 0 {
-      trace!("{} has a heal part - Assigning Healer", self.name());
-      Role::Healer
-    } else if self.get_active_bodyparts(Attack) > 0
-      || self.get_active_bodyparts(RangedAttack) > 0
-    {
-      trace!("{} has attack parts - Assigning Soldier", self.name());
-      Role::Soldier
-    } else if self.get_active_bodyparts(Claim) > 0 {
-      trace!("{} has a claim part - Assigning Reserver", self.name());
-      Role::Reserver
-    } else {
-      // Assign role based on first body part
-      trace!("{} only has a move part assigning scout", self.name());
-      match self.body()[0].part {
-        Move => Role::Scout,
-        Work => Role::Miner,
-        Carry => Role::Lorry,
-        Attack => Role::Soldier,
-        RangedAttack => Role::Soldier,
-        Tough => Role::Scout,
-        Heal => Role::Healer,
-        Claim => Role::Reserver,
-      }
-    };
-    trace!("{} is now a {}", self.name(), role);
-    self.memory().set_value(Values::Role(role));
-
-    trace!("Running calculated role");
+    let role = self.role();
+    trace!("{} is a {}: running role", self.name(), role);
     role.run(self)
   }
 }
@@ -144,11 +84,28 @@ fn run_creep_action(
     }
     Actions::Harvest => {
       if let Some(target) = target.as_source() {
-        creep.go_harvest(&target)
+        // check for container
+        if let Some(c) = target.container() {
+          if creep.pos() == c.pos() {
+            creep.go_harvest(&target)
+          } else {
+            creep.move_to(&c)
+          }
+        } else {
+          creep.go_harvest(&target)
+        }
       } else if let Some(target) = target.as_mineral() {
         if let Some(t) = target.extractor() {
           if t.cooldown() == 0 {
-            creep.go_harvest(&target)
+            if let Some(c) = t.container() {
+              if creep.pos() == c.pos() {
+                creep.go_harvest(&target)
+              } else {
+                creep.move_to(&c)
+              }
+            } else {
+              creep.go_harvest(&target)
+            }
           } else {
             ReturnCode::Busy
           }
@@ -156,7 +113,15 @@ fn run_creep_action(
           creep.reset_action()
         }
       } else if let Some(target) = target.as_deposit() {
-        creep.go_harvest(&target)
+        if let Some(c) = target.container() {
+          if creep.pos() == c.pos() {
+            creep.go_harvest(&target)
+          } else {
+            creep.move_to(&c)
+          }
+        } else {
+          creep.go_harvest(&target)
+        }
       } else {
         creep.reset_action()
       }
@@ -193,7 +158,7 @@ fn run_creep_action(
     }
     Actions::ReserveController => {
       if let Some(Structure::Controller(target)) = target.as_structure() {
-        creep.go_reserve_controller(&target)
+        creep.go_reserve_controller(target.pos().room_name())
       } else {
         creep.reset_action()
       }
@@ -213,9 +178,7 @@ fn run_creep_action(
       }
     }
     Actions::Transfer => {
-      if let Some(Values::Resource(resource)) =
-        creep.memory().get_value(Keys::Resource)
-      {
+      if let Some(resource) = creep.resource() {
         if let Some(t) = target.as_creep() {
           return creep.go_transfer(&t, resource, None);
         }
@@ -226,33 +189,25 @@ fn run_creep_action(
       creep.reset_action()
     }
     Actions::Withdraw => {
-      if let Some(Values::Resource(resource)) =
-        creep.memory().get_value(Keys::Resource)
-      {
-        if let Some(t) = target.as_tombstone() {
-          return creep.go_withdraw(&t, resource, None);
+      if let Some(resource) = creep.resource() {
+        {
+          if let Some(t) = target.as_tombstone() {
+            return creep.go_withdraw(&t, resource, None);
+          }
+          if let Some(t) = target.as_ruin() {
+            return creep.go_withdraw(&t, resource, None);
+          }
+          if let Some(t) = target.as_structure() {
+            return creep.go_withdraw_from_structure(&t, resource, None);
+          }
         }
-        if let Some(t) = target.as_ruin() {
-          return creep.go_withdraw(&t, resource, None);
-        }
-        if let Some(t) = target.as_structure() {
-          return creep.go_withdraw_from_structure(&t, resource, None);
-        }
-      }
-      creep.reset_action()
-    }
-    Actions::Travel => {
-      if let Some(t) = target.as_flag() {
-        creep.move_to(&t)
-      } else if let Some(t) = target.as_room_object() {
-        creep.move_to(&t)
+        creep.reset_action()
       } else {
         creep.reset_action()
       }
     }
   }
 }
-
 impl Runner for Structure {
   fn run(&self) -> ReturnCode {
     match self {
@@ -417,7 +372,48 @@ impl Runner for Flag {
 
     match self.name().as_str() {
       "claim" => {
-        root().set_value(Values::Claim(self.pos().room_name().to_string()));
+        for creep in game::creeps::values() {
+          let creep = Creeper::new(creep);
+          let room_name = self.pos().room_name();
+          if creep.role() == Role::Claimer {
+            creep.memory().set_value(Values::TargetRoom(room_name));
+          }
+          if creep.role() == Role::RemoteBuilder {
+            creep.memory().set_value(Values::TargetRoom(room_name));
+          }
+        }
+      }
+      "remote" => {
+        for creep in game::creeps::values() {
+          let room_name = self.pos().room_name();
+          if let Some(Values::Role(Role::RemoteHarvester)) =
+            creep.memory().get_value(Keys::Role)
+          {
+            creep.memory().set_value(Values::TargetRoom(room_name));
+          }
+        }
+      }
+      "attack" => {
+        for creep in game::creeps::values() {
+          let room_name = self.pos().room_name();
+          if let Some(Values::Role(Role::Soldier)) =
+            creep.memory().get_value(Keys::Role)
+          {
+            root().set_value(Values::TargetRoom(room_name));
+            creep.memory().set_value(Values::TargetRoom(room_name));
+          }
+        }
+      }
+      "reserve" => {
+        for creep in game::creeps::values() {
+          let room_name = self.pos().room_name();
+          if let Some(Values::Role(Role::Reserver)) =
+            creep.memory().get_value(Keys::Role)
+          {
+            root().set_value(Values::TargetRoom(room_name));
+            creep.memory().set_value(Values::TargetRoom(room_name));
+          }
+        }
       }
       _ => (),
     }

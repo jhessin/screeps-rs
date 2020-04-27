@@ -36,23 +36,17 @@ pub fn dump_info(room: &Room) {
   time_hack("Starting info dump");
   info!("Room {}:", room.name());
 
-  let mut creeps: BTreeMap<Option<Role>, Vec<Creep>> = BTreeMap::new();
+  let mut creeps: BTreeMap<Role, Vec<Creeper>> = BTreeMap::new();
   for creep in room.find(find::MY_CREEPS) {
-    if let Some(Values::Role(role)) = creep.memory().get_value(Keys::Role) {
-      let vec = creeps.entry(Some(role)).or_insert(vec![]);
-      vec.push(creep);
-    } else {
-      let vec = creeps.entry(None).or_insert(vec![]);
-      vec.push(creep);
-    }
+    let creep = Creeper::new(creep);
+    let role = creep.role();
+    let vec = creeps.entry(role).or_insert(vec![]);
+    vec.push(creep);
   }
 
   for (role, creeps) in creeps {
     let creeps = creeps.into_iter().map(|s| s.name()).collect::<Vec<String>>();
-    match role {
-      Some(role) => info!("{} Creeps: {:?}", role, creeps),
-      None => info!("Creeps without a role: {:?}", creeps),
-    }
+    info!("{} Creeps: {:?}", role, creeps);
   }
 
   // break down current energy

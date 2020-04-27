@@ -4,6 +4,7 @@ use std::ops::Deref;
 const ROOM_SIZE: u32 = 49;
 
 /// This is the finder trait for implementing methods on the Position type
+#[derive(Debug)]
 pub struct Finder {
   /// The position that the finder is finding paths for
   pub pos: Position,
@@ -368,13 +369,13 @@ impl Finder {
       self
         .find(find::DROPPED_RESOURCES)
         .into_iter()
-        .filter(|s| s.resource_type() == resource && s.amount() > 50)
+        .filter(|s| s.resource_type() == resource && s.container().is_none())
         .collect()
     } else {
       self
         .find(find::DROPPED_RESOURCES)
         .into_iter()
-        .filter(|s| !s.has_creep())
+        .filter(|s| s.container().is_none())
         .collect()
     };
 
@@ -615,9 +616,6 @@ impl Finder {
 pub trait CreepFinder {
   /// Return all the creeps in a room with a particular role
   fn creeps_with_role(&self, role: Role) -> Vec<Creep>;
-
-  /// Return all the creeps without a role
-  fn idle_creeps(&self) -> Vec<Creep>;
 }
 
 impl CreepFinder for Room {
@@ -625,21 +623,10 @@ impl CreepFinder for Room {
     self
       .find(find::MY_CREEPS)
       .into_iter()
-      .filter(|s| {
-        if let Some(Values::Role(r)) = s.memory().get_value(Keys::Role) {
-          r == role
-        } else {
-          false
-        }
+      .filter(|s: &Creep| {
+        let creep = Creeper::new(s.clone());
+        creep.role() == role
       })
-      .collect()
-  }
-
-  fn idle_creeps(&self) -> Vec<Creep> {
-    self
-      .find(find::MY_CREEPS)
-      .into_iter()
-      .filter(|s| s.memory().get_value(Keys::Role).is_none())
       .collect()
   }
 }

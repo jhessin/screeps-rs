@@ -15,6 +15,10 @@ pub enum Keys {
   Role,
   /// The key for whether the creep is working or not
   Working,
+  /// Target Room
+  TargetRoom,
+  /// The Home room
+  HomeRoom,
 
   /// These are keys for other memory paths
 
@@ -38,6 +42,10 @@ pub enum Values {
   Action(Actions),
   /// The target that the creep is using
   TargetId(String),
+  /// The target room
+  TargetRoom(RoomName),
+  /// The Home room
+  HomeRoom(RoomName),
   /// The resource the creep is dealing with
   Resource(ResourceType),
   /// The Value for the Role
@@ -91,6 +99,12 @@ impl ValueSet for MemoryReference {
       Values::Claim(d) => {
         self.set(&to_string(&Keys::Claim).expect("Invalid Key"), d)
       }
+      Values::TargetRoom(d) => self.set(
+        &to_string(&Keys::TargetRoom).expect("Invalid Key"),
+        &d.to_string(),
+      ),
+      Values::HomeRoom(d) => self
+        .set(&to_string(&Keys::HomeRoom).expect("Invalid Key"), &d.to_string()),
     }
     self
   }
@@ -126,6 +140,18 @@ impl ValueSet for MemoryReference {
         return Some(Values::Working(data));
       }
       Keys::Claim => return Some(Values::Claim(result_str)),
+      Keys::TargetRoom => {
+        if let Ok(t) = RoomName::from_str(&result_str) {
+          return Some(Values::TargetRoom(t));
+        } else {
+          warn!("Target room couldn't be parsed from {}", &result_str);
+        }
+      }
+      Keys::HomeRoom => {
+        if let Ok(t) = RoomName::from_str(&result_str) {
+          return Some(Values::HomeRoom(t));
+        }
+      }
     }
     None
   }
@@ -175,8 +201,6 @@ pub enum Actions {
   Transfer,
   /// Withdraw the indicated resource
   Withdraw,
-  /// Travel to a destination
-  Travel,
 }
 
 impl Display for Actions {

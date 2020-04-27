@@ -14,9 +14,8 @@ impl<T: HasId + RoomObjectProperties> HasCreep for T {
   fn has_creep(&self) -> bool {
     let room = if let Some(r) = self.room() { r } else { return false };
     for creep in room.find(find::MY_CREEPS) as Vec<Creep> {
-      if let Some(Values::TargetId(id)) =
-        creep.memory().get_value(Keys::TargetId)
-      {
+      let creep = Creeper::new(creep);
+      if let Some(id) = creep.target_id() {
         if id == self.id().to_string() {
           return true;
         }
@@ -30,10 +29,9 @@ impl<T: HasId + RoomObjectProperties> HasCreep for T {
     let creeps = room.find(find::MY_CREEPS);
     trace!("Searching through {} Creeps", creeps.len());
     for creep in creeps {
-      if let (Some(Values::Role(r)), Some(Values::TargetId(id))) = (
-        creep.memory().get_value(Keys::Role),
-        creep.memory().get_value(Keys::TargetId),
-      ) {
+      let creep = Creeper::new(creep);
+      let r = creep.role();
+      if let Some(id) = creep.target_id() {
         trace!("Creep with role: {} and target: {}", r, id);
         trace!(
           "Searching for role: {} and target: {}",
