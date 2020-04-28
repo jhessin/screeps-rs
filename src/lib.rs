@@ -9,9 +9,9 @@ pub use std::{
 };
 pub use stdweb::Reference;
 
+pub use bincode::{deserialize, serialize};
 /// Basic logging through debug!, info!, warn!, and error! macros.
 pub use log::*;
-pub use ron::{de::from_str, ser::to_string};
 /// The screeps imports
 pub use screeps::{
   find,
@@ -41,7 +41,6 @@ pub use memory::*;
 /// My modules
 pub use names::*;
 pub use rooms::*;
-pub use traits::*;
 
 /// access the logging module
 pub mod logging;
@@ -51,4 +50,3 @@ mod init;
 mod memory;
 mod names;
 mod rooms;
-mod traits;
