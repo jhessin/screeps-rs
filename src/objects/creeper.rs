@@ -199,6 +199,7 @@ impl Creeper {
     target: &T,
   ) -> ReturnCode {
     self.memory().set_value(Values::TargetId(target.id().to_string()));
+    self.pos().create_construction_site(StructureType::Road);
     self.move_to(target)
   }
 
