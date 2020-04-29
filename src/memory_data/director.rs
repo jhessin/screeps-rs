@@ -11,12 +11,14 @@ pub struct Director {
   owned_cells: HashMap<RoomName, RoomData>,
   /// A collection of each cell that has been scouted
   scouted_cells: HashMap<RoomName, RoomData>,
+  // TODO Add task_queue: VecQueue<Task>
 }
 
 const DIRECTOR_KEY: &str = "Director";
 
 impl Display for Director {
   fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    // TODO update this to show everything.
     writeln!(f, "Owned rooms: ")?;
     for (name, cell) in &self.owned_cells {
       writeln!(f, "\t{}:{}", name, cell)?;

@@ -2,9 +2,7 @@
 #![warn(missing_docs)]
 
 pub use std::{
-  collections::BTreeMap,
-  collections::HashMap,
-  collections::HashSet,
+  collections::{BTreeMap, HashMap, HashSet, VecDeque},
   fmt::{Display, Formatter, Result},
   str::FromStr,
 };
@@ -28,7 +26,7 @@ pub use screeps::{
   pathfinder::{search, SearchOptions},
   prelude::*,
   traits::{IntoExpectedType, TryFrom, TryInto},
-  MarketResourceType, ObjectId,
+  Density, MarketResourceType, ObjectId,
   Part::{self, *},
   Position, RawObjectId,
   ResourceType::{self, *},

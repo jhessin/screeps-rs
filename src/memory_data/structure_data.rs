@@ -10,7 +10,19 @@ pub struct StructureData {
 
 impl Display for StructureData {
   fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-    write!(f, "{:?} @ {}", self.structure_type, self.pos)
+    writeln!(
+      f,
+      "{:?} @ ({}, {})",
+      self.structure_type,
+      self.pos.x(),
+      self.pos.y()
+    )?;
+
+    for (r, amount) in &self.resources {
+      writeln!(f, "{:?}: {}", r, amount)?;
+    }
+
+    Ok(())
   }
 }
 

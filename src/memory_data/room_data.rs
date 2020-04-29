@@ -1,55 +1,21 @@
 use crate::*;
-use screeps::Density;
-
-/// This serializes source data
-#[derive(Serialize, Deserialize, Eq, PartialEq)]
-pub struct SourceData {
-  pos: Position,
-  amount: u32,
-  capacity: u32,
-}
-
-/// This serializes mineral data
-#[derive(Serialize, Deserialize, Eq, PartialEq)]
-pub struct MineralData {
-  pos: Position,
-  mineral_type: ResourceType,
-  amount: u32,
-  density: Density,
-}
-
-/// This serializes and wraps creeps
-/// TODO make roles and add that to this
-#[derive(Serialize, Deserialize, Eq, PartialEq)]
-pub struct CreepData {
-  name: String,
-  hits: u32,
-  max_hits: u32,
-  parts: HashSet<Part>,
-}
-
-/// This serializes deposit data
-#[derive(Serialize, Deserialize, Eq, PartialEq)]
-pub struct DepositData {
-  pos: Position,
-  deposit_type: ResourceType,
-  cooldown: u32,
-}
 
 /// The AgentCell is a single room and manages all of the info for that cell
 #[derive(Serialize, Deserialize, Eq, PartialEq)]
 pub struct RoomData {
   name: RoomName,
   level: u8,
-  construction: HashMap<StructureType, HashSet<Position>>,
+  construction: HashMap<StructureType, Vec<ConstructionData>>,
   structures: HashMap<StructureType, Vec<StructureData>>,
   sources: Vec<SourceData>,
   mineral: Option<MineralData>,
   deposit: Option<DepositData>,
+  // TODO: add creeps: BTreeMap<Role, Vec<CreepData>>
 }
 
 impl Display for RoomData {
   fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    // TODO: Update this to show everything
     writeln!(f, "{} Level: {}", self.name, self.level)?;
     writeln!(f, "Construction Sites:")?;
     for (structure_type, sites) in &self.construction {
@@ -85,45 +51,32 @@ impl RoomData {
       };
 
     // initialize collection variables
-    let mut construction: HashMap<StructureType, HashSet<Position>> =
+    let mut construction: HashMap<StructureType, Vec<ConstructionData>> =
       HashMap::new();
     let mut structures: HashMap<StructureType, Vec<StructureData>> =
       HashMap::new();
     let mut sources = Vec::<SourceData>::new();
 
     // get the mineral data
-    let mineral = if let Some(m) = &room.find(find::MINERALS).get(0) {
-      Some(MineralData {
-        pos: m.pos(),
-        mineral_type: m.mineral_type(),
-        amount: m.mineral_amount(),
-        density: m.density(),
-      })
+    let mineral = if let Some(m) = room.find(find::MINERALS).get(0) {
+      Some(MineralData::new(m))
     } else {
       None
     };
 
     let deposit = if let Some(m) = &room.find(find::DEPOSITS).get(0) {
-      Some(DepositData {
-        pos: m.pos(),
-        deposit_type: m.deposit_type(),
-        cooldown: m.cooldown(),
-      })
+      Some(DepositData::new(m))
     } else {
       None
     };
 
     for s in room.find(find::SOURCES) {
-      sources.push(SourceData {
-        pos: s.pos(),
-        amount: s.energy(),
-        capacity: s.energy_capacity(),
-      });
+      sources.push(SourceData::new(s));
     }
 
     for site in room.find(find::CONSTRUCTION_SITES) {
       let entry = construction.entry(site.structure_type()).or_default();
-      entry.insert(site.pos());
+      entry.push(ConstructionData::new(site));
     }
 
     for s in room.find(find::MY_STRUCTURES) {
