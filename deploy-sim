@@ -1,0 +1,4 @@
+#!/usr/bin/env zsh
+
+cp sim/screeps.toml .
+cargo screeps deploy
