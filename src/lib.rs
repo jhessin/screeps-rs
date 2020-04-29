@@ -3,6 +3,7 @@
 
 pub use std::{
   collections::BTreeMap,
+  collections::HashMap,
   collections::HashSet,
   fmt::{Display, Formatter, Result},
   str::FromStr,

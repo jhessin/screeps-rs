@@ -1,5 +1,4 @@
 use crate::*;
-use std::collections::HashMap;
 
 /// The Director is a master wrapper that holds all global data and manages all creeps,
 /// rooms etc. It will get saved/loaded to/from memory each tick.
@@ -62,10 +61,12 @@ impl Director {
     for room in game::rooms::values() {
       if let Some(ctrl) = room.controller() as Option<StructureController> {
         if ctrl.my() {
+          self.scouted_cells.remove(&room.name());
           self.owned_cells.insert(room.name(), RoomData::new(room));
           continue;
         }
       }
+      self.owned_cells.remove(&room.name());
       self.scouted_cells.insert(room.name(), RoomData::new(room));
     }
   }
