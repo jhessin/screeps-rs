@@ -1,7 +1,7 @@
 use crate::*;
 
 /// This serializes deposit data
-#[derive(Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct DepositData {
   pos: Position,
   deposit_type: ResourceType,

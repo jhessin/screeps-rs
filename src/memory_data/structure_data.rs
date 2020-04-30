@@ -1,7 +1,7 @@
 use crate::*;
 
 /// This serializes all the info about a structure
-#[derive(Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct StructureData {
   pos: Position,
   structure_type: StructureType,

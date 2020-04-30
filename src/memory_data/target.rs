@@ -4,17 +4,17 @@ use crate::*;
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub enum TargetType {
   /// Holds a standard structure type
-  Structure(StructureType),
+  Structure(StructureData),
   /// Holds a tombstone
-  Tombstone,
+  Tombstone(TombstoneData),
   /// Holds a Ruin
-  Ruin,
+  Ruin(RuinData),
   /// Holds a construction site
-  ConstructionSite,
+  ConstructionSite(ConstructionData),
   /// Holds a Source
-  Source,
+  Source(SourceData),
   /// Holds a Deposit
-  Deposit,
+  Deposit(DepositData),
   /// Holds a Mineral
-  Mineral,
+  Mineral(MineralData),
 }

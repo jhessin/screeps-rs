@@ -1,7 +1,7 @@
 use crate::*;
 
 /// Holds all essential data for construction
-#[derive(Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct ConstructionData {
   pos: Position,
   id: ObjectId<ConstructionSite>,

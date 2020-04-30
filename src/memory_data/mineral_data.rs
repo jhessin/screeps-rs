@@ -1,7 +1,7 @@
 use crate::*;
 
 /// This serializes mineral data
-#[derive(Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct MineralData {
   pos: Position,
   mineral_type: ResourceType,

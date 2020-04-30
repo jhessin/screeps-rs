@@ -1,7 +1,7 @@
 use crate::*;
 
 /// This serializes source data
-#[derive(Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct SourceData {
   pos: Position,
   amount: u32,
