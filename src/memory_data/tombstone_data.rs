@@ -9,13 +9,7 @@ pub struct TombstoneData {
 
 impl Display for TombstoneData {
   fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-    writeln!(
-      f,
-      "{:?} @ ({}, {})",
-      self.structure_type,
-      self.pos.x(),
-      self.pos.y()
-    )?;
+    writeln!(f, "Tombstone @ ({}, {})", self.pos.x(), self.pos.y())?;
 
     for (r, amount) in &self.resources {
       writeln!(f, "{:?}: {}", r, amount)?;
