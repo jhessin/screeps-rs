@@ -1,7 +1,7 @@
 pub use action::*;
+pub use common_creep_data::*;
 pub use common_data::*;
 pub use construction_data::*;
-pub use creep_data::*;
 pub use deposit_data::*;
 pub use director::*;
 pub use mineral_data::*;
@@ -15,9 +15,9 @@ pub use task::*;
 pub use tombstone_data::*;
 
 mod action;
+mod common_creep_data;
 mod common_data;
 mod construction_data;
-mod creep_data;
 mod deposit_data;
 mod director;
 mod mineral_data;

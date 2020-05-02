@@ -46,12 +46,12 @@ impl Default for Director {
     let mut scouted_cells = HashMap::new();
     for room in game::rooms::values() {
       if let Some(ctrl) = room.controller() as Option<StructureController> {
-        if ctrl.owner_name() == Some(username.clone()) {
-          owned_cells.insert(room.name(), RoomData::new(room));
+        if ctrl.my() {
+          owned_cells.insert(room.name(), room.into());
           continue;
         }
       }
-      scouted_cells.insert(room.name(), RoomData::new(room));
+      scouted_cells.insert(room.name(), room.into());
     }
     Director { username, owned_cells, scouted_cells }
   }
@@ -60,16 +60,17 @@ impl Default for Director {
 impl Director {
   /// Update the director
   pub fn update(&mut self) {
+    // TODO Optimize this
     for room in game::rooms::values() {
       if let Some(ctrl) = room.controller() as Option<StructureController> {
         if ctrl.my() {
           self.scouted_cells.remove(&room.name());
-          self.owned_cells.insert(room.name(), RoomData::new(room));
+          self.owned_cells.insert(room.name(), room.into());
           continue;
         }
       }
       self.owned_cells.remove(&room.name());
-      self.scouted_cells.insert(room.name(), RoomData::new(room));
+      self.scouted_cells.insert(room.name(), room.into());
     }
   }
 

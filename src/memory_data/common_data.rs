@@ -53,13 +53,14 @@ impl IntoIterator for CommonDataVec {
   }
 }
 
-impl CommonData {
-  /// Generate from anything with a position
-  pub fn new<T: HasPosition>(obj: T) -> Self {
-    let pos = obj.pos();
+impl<T: HasPosition> From<T> for CommonData {
+  fn from(p: T) -> Self {
+    let pos = p.pos();
     CommonData { pos }
   }
+}
 
+impl CommonData {
   /// Get the underlying terrain
   pub fn terrain(&self) -> Terrain {
     let data = RoomTerrain::constructor(self.pos.room_name());
@@ -117,13 +118,21 @@ impl CommonData {
 
 impl CommonData {
   /// Find a direct path ignoring swamps for a scout
-  pub fn scout_path_to(&self, other: CommonDataVec) -> SearchResults {
+  pub fn scout_path_to<T: Into<CommonDataVec>>(
+    &self,
+    other: T,
+  ) -> SearchResults {
     let options = SearchOptions::new().swamp_cost(1);
+    let other = other.into();
     search_many(&self.pos, other, options)
   }
 
   /// Find a path for a hauler to drop off resources amidst multiple targets
-  pub fn hauler_path_to(&self, other: CommonDataVec) -> SearchResults {
+  pub fn hauler_path_to<T: Into<CommonDataVec>>(
+    &self,
+    other: T,
+  ) -> SearchResults {
+    let other = other.into();
     search_many(&self.pos, other, SearchOptions::default())
   }
 

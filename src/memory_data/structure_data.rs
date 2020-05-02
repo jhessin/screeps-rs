@@ -26,9 +26,8 @@ impl Display for StructureData {
   }
 }
 
-impl StructureData {
-  /// Generates a new structure data from a structure
-  pub fn new(s: Structure) -> Self {
+impl From<Structure> for StructureData {
+  fn from(s: Structure) -> Self {
     let structure_type = s.structure_type();
     let pos = s.pos();
     let mut resources = HashMap::<ResourceType, u32>::new();
@@ -41,9 +40,11 @@ impl StructureData {
 
     StructureData { structure_type, pos, resources }
   }
-
+}
+impl StructureData {
   /// Returns the Structure that this StructureData refers to
   /// PANICS if the structure isn't there
+  /// TODO have this return a result?
   pub fn structure(&self) -> Structure {
     self
       .pos

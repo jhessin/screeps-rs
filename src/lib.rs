@@ -4,6 +4,7 @@
 pub use std::{
   collections::{BTreeMap, HashMap, HashSet, VecDeque},
   fmt::{Display, Formatter, Result},
+  ops::Deref,
   str::FromStr,
 };
 pub use stdweb::Reference;

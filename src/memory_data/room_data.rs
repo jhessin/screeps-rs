@@ -36,9 +36,8 @@ impl Display for RoomData {
   }
 }
 
-impl RoomData {
-  /// Generate a new AgentCell from a room
-  pub fn new(room: Room) -> Self {
+impl From<Room> for RoomData {
+  fn from(room: Room) -> Self {
     // store the name of the room.
     let name = room.name();
 
@@ -59,29 +58,29 @@ impl RoomData {
 
     // get the mineral data
     let mineral = if let Some(m) = room.find(find::MINERALS).get(0) {
-      Some(MineralData::new(m))
+      Some(m.into())
     } else {
       None
     };
 
-    let deposit = if let Some(m) = &room.find(find::DEPOSITS).get(0) {
-      Some(DepositData::new(m))
+    let deposit = if let Some(m) = room.find(find::DEPOSITS).get(0) {
+      Some(m.into())
     } else {
       None
     };
 
     for s in room.find(find::SOURCES) {
-      sources.push(SourceData::new(s));
+      sources.push(s.into());
     }
 
     for site in room.find(find::CONSTRUCTION_SITES) {
       let entry = construction.entry(site.structure_type()).or_default();
-      entry.push(ConstructionData::new(site));
+      entry.push(site.into());
     }
 
     for s in room.find(find::MY_STRUCTURES) {
       let entry = structures.entry(s.structure_type()).or_default();
-      entry.push(StructureData::new(s.as_structure()));
+      entry.push(s.as_structure().into());
     }
 
     RoomData {
@@ -94,7 +93,9 @@ impl RoomData {
       deposit,
     }
   }
+}
 
+impl RoomData {
   /// Determine if this room is currently visible
   pub fn is_visible(&self) -> bool {
     game::rooms::get(self.name).is_some()

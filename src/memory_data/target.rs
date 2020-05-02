@@ -17,4 +17,6 @@ pub enum TargetType {
   Deposit(DepositData),
   /// Holds a Mineral
   Mineral(MineralData),
+  /// Holds a Creep
+  Creep(CommonCreepData),
 }

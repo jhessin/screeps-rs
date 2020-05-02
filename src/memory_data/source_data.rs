@@ -21,9 +21,8 @@ impl Display for SourceData {
   }
 }
 
-impl SourceData {
-  /// Generate a new SourceData from a source
-  pub fn new(source: Source) -> Self {
+impl From<Source> for SourceData {
+  fn from(source: Source) -> Self {
     let pos = source.pos();
     let amount = source.energy();
     let capacity = source.energy_capacity();
