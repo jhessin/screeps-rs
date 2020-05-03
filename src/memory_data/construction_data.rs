@@ -10,6 +10,12 @@ pub struct ConstructionData {
   structure_type: StructureType,
 }
 
+impl HasPosition for ConstructionData {
+  fn pos(&self) -> Position {
+    self.pos.pos()
+  }
+}
+
 impl Display for ConstructionData {
   fn fmt(&self, f: &mut Formatter<'_>) -> Result {
     writeln!(f, "{:?}: {}", self.structure_type, self.pos,)?;

@@ -16,6 +16,7 @@ pub use bincode::{deserialize, serialize};
 pub use log::*;
 /// The screeps imports
 pub use screeps::{
+  constants::*,
   find,
   game::{
     self,

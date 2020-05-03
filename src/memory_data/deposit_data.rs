@@ -8,6 +8,12 @@ pub struct DepositData {
   cooldown: u32,
 }
 
+impl HasPosition for DepositData {
+  fn pos(&self) -> Position {
+    self.pos.pos()
+  }
+}
+
 impl Deref for DepositData {
   type Target = CommonData;
 

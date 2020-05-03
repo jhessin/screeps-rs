@@ -8,6 +8,12 @@ pub struct RuinData {
   resources: HashMap<ResourceType, u32>,
 }
 
+impl HasPosition for RuinData {
+  fn pos(&self) -> Position {
+    self.pos.pos()
+  }
+}
+
 impl Display for RuinData {
   fn fmt(&self, f: &mut Formatter<'_>) -> Result {
     writeln!(f, "Ruin @ {}", self.pos)?;

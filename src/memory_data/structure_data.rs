@@ -3,20 +3,20 @@ use crate::*;
 /// This serializes all the info about a structure
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct StructureData {
-  pos: Position,
+  pos: CommonData,
   structure_type: StructureType,
   resources: HashMap<ResourceType, u32>,
 }
 
+impl HasPosition for StructureData {
+  fn pos(&self) -> Position {
+    self.pos.pos()
+  }
+}
+
 impl Display for StructureData {
   fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-    writeln!(
-      f,
-      "{:?} @ ({}, {})",
-      self.structure_type,
-      self.pos.x(),
-      self.pos.y()
-    )?;
+    writeln!(f, "{:?} @ {}", self.structure_type, self.pos,)?;
 
     for (r, amount) in &self.resources {
       writeln!(f, "{:?}: {}", r, amount)?;
@@ -29,7 +29,7 @@ impl Display for StructureData {
 impl From<Structure> for StructureData {
   fn from(s: Structure) -> Self {
     let structure_type = s.structure_type();
-    let pos = s.pos();
+    let pos = s.pos().into();
     let mut resources = HashMap::<ResourceType, u32>::new();
 
     if let Some(store) = s.as_has_store() {
@@ -44,10 +44,11 @@ impl From<Structure> for StructureData {
 impl StructureData {
   /// Returns the Structure that this StructureData refers to
   /// PANICS if the structure isn't there
-  /// TODO have this return a result?
+  /// TODO have this return a result or option?
   pub fn structure(&self) -> Structure {
     self
       .pos
+      .pos()
       .find_in_range(find::STRUCTURES, 0)
       .into_iter()
       .filter(|s| s.structure_type() == self.structure_type)
@@ -57,6 +58,6 @@ impl StructureData {
 
   /// Determines if the room this structure is in is visible
   pub fn is_visible(&self) -> bool {
-    game::rooms::get(self.pos.room_name()).is_some()
+    game::rooms::get(self.pos.pos().room_name()).is_some()
   }
 }

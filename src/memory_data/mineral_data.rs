@@ -9,6 +9,12 @@ pub struct MineralData {
   density: Density,
 }
 
+impl HasPosition for MineralData {
+  fn pos(&self) -> Position {
+    self.pos.pos()
+  }
+}
+
 impl Display for MineralData {
   fn fmt(&self, f: &mut Formatter<'_>) -> Result {
     writeln!(f, "{:?}: {}", self.mineral_type, self.pos)?;

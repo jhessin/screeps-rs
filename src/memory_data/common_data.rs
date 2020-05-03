@@ -7,6 +7,15 @@ use std::ops::Deref;
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct CommonData {
   pos: Position,
+  scouted: HashSet<Position>,
+  task_requests: VecDeque<Task>,
+}
+
+impl CommonData {
+  /// HasPosition
+  pub fn pos(&self) -> Position {
+    self.pos
+  }
 }
 
 impl Display for CommonData {
@@ -56,10 +65,13 @@ impl IntoIterator for CommonDataVec {
 impl<T: HasPosition> From<T> for CommonData {
   fn from(p: T) -> Self {
     let pos = p.pos();
-    CommonData { pos }
+    let scouted = HashSet::new();
+    let task_requests = vec![].into_iter().collect();
+    CommonData { pos, scouted, task_requests }
   }
 }
 
+/// Terrain!
 impl CommonData {
   /// Get the underlying terrain
   pub fn terrain(&self) -> Terrain {
@@ -116,6 +128,7 @@ impl CommonData {
   }
 }
 
+/// Path generation
 impl CommonData {
   /// Find a direct path ignoring swamps for a scout
   pub fn scout_path_to<T: Into<CommonDataVec>>(
@@ -139,5 +152,31 @@ impl CommonData {
   /// Find a basic path
   pub fn path_to(&self, other: &CommonData) -> SearchResults {
     search(&self.pos, &other.pos, std::u32::MAX, SearchOptions::default())
+  }
+}
+
+impl CommonData {
+  /// Scout a path from a source
+  /// Returns true if this has not been done already
+  pub fn scout_from(&mut self, other: &CommonData) -> bool {
+    if self.scouted.contains(&other.pos) {
+      return false;
+    }
+
+    self.scouted.insert(other.pos);
+
+    let mut task = Task::default();
+    task.push_back((
+      Action::Scout,
+      Target::Path([other.pos.clone(), self.pos.clone()]),
+    ));
+    self.task_requests.push_back(task);
+
+    true
+  }
+
+  /// Get the tasks for iteration
+  pub fn tasks(&self) -> &VecDeque<Task> {
+    &self.task_requests
   }
 }

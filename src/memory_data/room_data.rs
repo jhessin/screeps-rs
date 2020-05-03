@@ -1,5 +1,8 @@
 use crate::*;
 
+/// A role is just a HashSet of Parts
+pub type Role = HashSet<Part>;
+
 /// The AgentCell is a single room and manages all of the info for that cell
 #[derive(Serialize, Deserialize, Eq, PartialEq)]
 pub struct RoomData {

@@ -7,6 +7,12 @@ pub struct TombstoneData {
   resources: HashMap<ResourceType, u32>,
 }
 
+impl HasPosition for TombstoneData {
+  fn pos(&self) -> Position {
+    self.pos.pos()
+  }
+}
+
 impl Display for TombstoneData {
   fn fmt(&self, f: &mut Formatter<'_>) -> Result {
     writeln!(f, "Tombstone @ {}", self.pos)?;
