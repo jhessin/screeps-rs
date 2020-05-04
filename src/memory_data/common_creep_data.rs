@@ -255,3 +255,24 @@ impl CommonCreepData {
     0
   }
 }
+
+impl CommonCreepData {
+  /// Update this creeps data
+  pub fn update(&mut self, creep: Creep) {
+    if self.id != creep.id() {
+      warn!("Attempting to update creep with invalid data");
+      return;
+    }
+
+    // Update position
+    self.pos = creep.pos().into();
+
+    // update hits
+    self.hits = creep.hits();
+
+    // update store
+    for r in creep.store_types() {
+      self.store.insert(r, creep.store_of(r));
+    }
+  }
+}

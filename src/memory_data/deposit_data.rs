@@ -30,8 +30,8 @@ impl Display for DepositData {
   }
 }
 
-impl From<&Deposit> for DepositData {
-  fn from(dep: &Deposit) -> Self {
+impl From<Deposit> for DepositData {
+  fn from(dep: Deposit) -> Self {
     let deposit_type = dep.deposit_type();
     let cooldown = dep.cooldown();
     let pos = dep.pos().into();

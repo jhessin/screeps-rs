@@ -23,8 +23,8 @@ impl Display for MineralData {
   }
 }
 
-impl From<&Mineral> for MineralData {
-  fn from(mineral: &Mineral) -> Self {
+impl From<Mineral> for MineralData {
+  fn from(mineral: Mineral) -> Self {
     let mineral_type = mineral.mineral_type();
     let amount = mineral.mineral_amount();
     let density = mineral.density();

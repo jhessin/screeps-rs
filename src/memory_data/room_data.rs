@@ -60,13 +60,13 @@ impl From<Room> for RoomData {
     let mut sources = Vec::<SourceData>::new();
 
     // get the mineral data
-    let mineral = if let Some(m) = room.find(find::MINERALS).get(0) {
+    let mineral = if let Some(m) = room.find(find::MINERALS).pop() {
       Some(m.into())
     } else {
       None
     };
 
-    let deposit = if let Some(m) = room.find(find::DEPOSITS).get(0) {
+    let deposit = if let Some(m) = room.find(find::DEPOSITS).pop() {
       Some(m.into())
     } else {
       None
@@ -102,5 +102,10 @@ impl RoomData {
   /// Determine if this room is currently visible
   pub fn is_visible(&self) -> bool {
     game::rooms::get(self.name).is_some()
+  }
+
+  /// Update the room
+  pub fn update(&mut self, _room: Room) {
+    todo!()
   }
 }
