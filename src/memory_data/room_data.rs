@@ -1,8 +1,5 @@
 use crate::*;
 
-/// A role is just a HashSet of Parts
-pub type Role = HashSet<Part>;
-
 /// The AgentCell is a single room and manages all of the info for that cell
 #[derive(Serialize, Deserialize, Eq, PartialEq)]
 pub struct RoomData {
@@ -13,7 +10,9 @@ pub struct RoomData {
   sources: Vec<SourceData>,
   mineral: Option<MineralData>,
   deposit: Option<DepositData>,
-  // TODO: add creeps: BTreeMap<Role, Vec<CreepData>>
+  my_creeps: Vec<CommonCreepData>,
+  my_power_creeps: Vec<CommonCreepData>,
+  other_creeps: Vec<CommonCreepData>,
 }
 
 impl Display for RoomData {
@@ -58,6 +57,29 @@ impl From<Room> for RoomData {
     let mut structures: HashMap<StructureType, Vec<StructureData>> =
       HashMap::new();
     let mut sources = Vec::<SourceData>::new();
+    let mut my_creeps = vec![];
+    let mut my_power_creeps = vec![];
+    let mut other_creeps = vec![];
+
+    for creep in room.find(find::MY_CREEPS) {
+      let creep: CommonCreepData = creep.into();
+      my_creeps.push(creep);
+    }
+
+    for creep in room.find(find::MY_POWER_CREEPS) {
+      let creep: CommonCreepData = creep.into();
+      my_power_creeps.push(creep);
+    }
+
+    for creep in room.find(find::HOSTILE_CREEPS) {
+      let creep: CommonCreepData = creep.into();
+      other_creeps.push(creep);
+    }
+
+    for creep in room.find(find::HOSTILE_POWER_CREEPS) {
+      let creep: CommonCreepData = creep.into();
+      other_creeps.push(creep);
+    }
 
     // get the mineral data
     let mineral = if let Some(m) = room.find(find::MINERALS).pop() {
@@ -94,6 +116,9 @@ impl From<Room> for RoomData {
       sources,
       mineral,
       deposit,
+      my_creeps,
+      my_power_creeps,
+      other_creeps,
     }
   }
 }
@@ -102,10 +127,5 @@ impl RoomData {
   /// Determine if this room is currently visible
   pub fn is_visible(&self) -> bool {
     game::rooms::get(self.name).is_some()
-  }
-
-  /// Update the room
-  pub fn update(&mut self, _room: Room) {
-    todo!()
   }
 }

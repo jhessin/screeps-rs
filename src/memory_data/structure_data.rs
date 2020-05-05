@@ -44,8 +44,7 @@ impl From<Structure> for StructureData {
 impl StructureData {
   /// Returns the Structure that this StructureData refers to
   /// PANICS if the structure isn't there
-  /// TODO have this return a result or option?
-  pub fn structure(&self) -> Structure {
+  pub fn structure(&self) -> Option<Structure> {
     self
       .pos
       .pos()
@@ -53,7 +52,6 @@ impl StructureData {
       .into_iter()
       .filter(|s| s.structure_type() == self.structure_type)
       .next()
-      .unwrap()
   }
 
   /// Determines if the room this structure is in is visible

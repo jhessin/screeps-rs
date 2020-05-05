@@ -76,35 +76,4 @@ impl Action {
     .into_iter()
     .collect()
   }
-
-  /// Get the ticks required for this action
-  pub fn ticks_req(&self, creep: &CommonCreepData, target: &Target) -> u32 {
-    // TODO
-    match self {
-      Action::Harvest => {
-        let harvest_power = creep.harvesting_power();
-        if harvest_power == 0 {
-          std::u32::MAX
-        } else {
-          creep.carry_capacity() / harvest_power
-            + creep.pos().get_range_to(target)
-        }
-      }
-      Action::Mine => std::u32::MAX,
-      Action::Attack => creep.attack_power(),
-      Action::AttackController => 0,
-      Action::Build => 0,
-      Action::Claim => 0,
-      Action::Dismantle => 0,
-      Action::GenerateSafeMode => 0,
-      Action::Heal => 0,
-      Action::Pickup => 0,
-      Action::Repair => 0,
-      Action::Reserve => 0,
-      Action::Transfer => 0,
-      Action::Withdraw => 0,
-      Action::Scout => 0,
-      Action::Upgrade => 0,
-    }
-  }
 }

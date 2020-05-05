@@ -12,6 +12,8 @@ pub struct CommonCreepData {
   store: HashMap<ResourceType, u32>,
 }
 
+// TODO extend this for my creeps and add tasks
+
 impl HasPosition for CommonCreepData {
   fn pos(&self) -> Position {
     self.pos.pos()
@@ -50,7 +52,6 @@ impl From<Creep> for CommonCreepData {
     let max_hits = c.hits_max();
     let mut store = HashMap::<ResourceType, u32>::new();
     let mut parts = HashSet::<Part>::new();
-    // TODO add task data
 
     for part in c.body() {
       parts.insert(part.part);
@@ -73,7 +74,6 @@ impl From<PowerCreep> for CommonCreepData {
     let max_hits = c.hits_max();
     let mut store = HashMap::<ResourceType, u32>::new();
     let parts = HashSet::<Part>::new();
-    // TODO add task data
 
     for r in c.store_types() {
       store.insert(r, c.store_of(r));
@@ -274,5 +274,15 @@ impl CommonCreepData {
     for r in creep.store_types() {
       self.store.insert(r, creep.store_of(r));
     }
+  }
+
+  /// Get the parts
+  pub fn parts(&self) -> HashSet<Part> {
+    self.parts.clone()
+  }
+
+  /// Get the creeps name
+  pub fn name(&self) -> &str {
+    &self.name
   }
 }

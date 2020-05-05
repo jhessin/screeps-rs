@@ -8,10 +8,10 @@ pub struct Director {
   /// The player's username
   username: String,
   /// A collection of each cell that is owned by us
-  owned_cells: HashMap<RoomName, RoomData>,
+  owned_rooms: HashMap<RoomName, RoomData>,
   /// A collection of each cell that has been scouted
-  scouted_cells: HashMap<RoomName, RoomData>,
-  // TODO Add task_queue: VecQueue<Task>
+  scouted_rooms: HashMap<RoomName, RoomData>,
+  task_queue: VecDeque<Task>,
 }
 
 const DIRECTOR_KEY: &str = "Director";
@@ -20,12 +20,12 @@ impl Display for Director {
   fn fmt(&self, f: &mut Formatter<'_>) -> Result {
     // TODO update this to show everything.
     writeln!(f, "Owned rooms: ")?;
-    for (name, cell) in &self.owned_cells {
+    for (name, cell) in &self.owned_rooms {
       writeln!(f, "\t{}:{}", name, cell)?;
     }
 
     writeln!(f, "Scouted rooms: ")?;
-    for (name, cell) in &self.scouted_cells {
+    for (name, cell) in &self.scouted_rooms {
       writeln!(f, "\t{}:{}", name, cell)?;
     }
     Ok(())
@@ -41,6 +41,7 @@ impl Default for Director {
         return data;
       }
     }
+    // This should never panic as we always have at least 1 spawn in the game
     let username = game::spawns::values().get(0).unwrap().owner_name().unwrap();
     let mut owned_cells = HashMap::new();
     let mut scouted_cells = HashMap::new();
@@ -53,24 +54,31 @@ impl Default for Director {
       }
       scouted_cells.insert(room.name(), room.into());
     }
-    Director { username, owned_cells, scouted_cells }
+
+    let task_queue = VecDeque::new();
+
+    Director {
+      username,
+      owned_rooms: owned_cells,
+      scouted_rooms: scouted_cells,
+      task_queue,
+    }
   }
 }
 
 impl Director {
   /// Update the director
   pub fn update(&mut self) {
-    // TODO Optimize this
     for room in game::rooms::values() {
       if let Some(ctrl) = room.controller() as Option<StructureController> {
         if ctrl.my() {
-          self.scouted_cells.remove(&room.name());
-          self.owned_cells.insert(room.name(), room.into());
+          self.scouted_rooms.remove(&room.name());
+          self.owned_rooms.insert(room.name(), room.into());
           continue;
         }
       }
-      self.owned_cells.remove(&room.name());
-      self.scouted_cells.insert(room.name(), room.into());
+      self.owned_rooms.remove(&room.name());
+      self.scouted_rooms.insert(room.name(), room.into());
     }
   }
 
