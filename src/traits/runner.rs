@@ -301,13 +301,11 @@ impl Runner for Structure {
           }
 
           let amount = t.store_used_capacity(Some(r));
-          let mut orders: Vec<Order> = game::market::get_all_orders()
-            .into_iter()
-            .filter(|s| {
-              s.order_type == OrderType::Buy
-                && s.resource_type == MarketResourceType::Resource(r)
-            })
-            .collect();
+          let mut orders: Vec<Order> =
+            game::market::get_all_orders(Some(MarketResourceType::Resource(r)))
+              .into_iter()
+              .filter(|s| s.order_type == OrderType::Buy)
+              .collect();
 
           if orders.len() == 0 {
             // there are no orders for this resource
@@ -339,9 +337,13 @@ impl Runner for Structure {
         ReturnCode::Ok
       }
       Structure::Tower(tower) => {
-        if let Some(target) =
-          tower.pos().find_closest_by_range(find::HOSTILE_CREEPS)
-        {
+        let mut targets = tower
+          .pos()
+          .find_in_range(find::HOSTILE_CREEPS, 49)
+          .into_iter()
+          .filter(|s| s.owner_name() != "Saruss")
+          .collect::<Vec<Creep>>();
+        if let Some(target) = targets.pop() {
           tower.attack(&target)
         } else if let Some(target) =
           tower.pos().find_closest_by_range(find::HOSTILE_POWER_CREEPS)
