@@ -4,6 +4,7 @@ use crate::*;
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct DepositData {
   pos: CommonData,
+  id: ObjectId<Deposit>,
   deposit_type: ResourceType,
   cooldown: u32,
 }
@@ -33,9 +34,17 @@ impl Display for DepositData {
 impl From<Deposit> for DepositData {
   fn from(dep: Deposit) -> Self {
     let deposit_type = dep.deposit_type();
+    let id = dep.id();
     let cooldown = dep.cooldown();
     let pos = dep.pos().into();
 
-    DepositData { pos, deposit_type, cooldown }
+    DepositData { pos, id, deposit_type, cooldown }
+  }
+}
+
+impl DepositData {
+  /// unwrap the deposit
+  pub fn unwrap(&self) -> Deposit {
+    game::get_object_typed(self.id).unwrap().unwrap()
   }
 }

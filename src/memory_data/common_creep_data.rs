@@ -12,8 +12,6 @@ pub struct CommonCreepData {
   store: HashMap<ResourceType, u32>,
 }
 
-// TODO extend this for my creeps and add tasks
-
 impl HasPosition for CommonCreepData {
   fn pos(&self) -> Position {
     self.pos.pos()

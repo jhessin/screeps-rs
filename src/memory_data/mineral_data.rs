@@ -4,6 +4,7 @@ use crate::*;
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct MineralData {
   pos: CommonData,
+  id: ObjectId<Mineral>,
   mineral_type: ResourceType,
   amount: u32,
   density: Density,
@@ -26,9 +27,17 @@ impl Display for MineralData {
 impl From<Mineral> for MineralData {
   fn from(mineral: Mineral) -> Self {
     let mineral_type = mineral.mineral_type();
+    let id = mineral.id();
     let amount = mineral.mineral_amount();
     let density = mineral.density();
     let pos = mineral.pos().into();
-    MineralData { pos, mineral_type, amount, density }
+    MineralData { pos, id, mineral_type, amount, density }
+  }
+}
+
+impl MineralData {
+  /// Unwrap the mineral
+  pub fn unwrap(&self) -> Mineral {
+    game::get_object_typed(self.id).unwrap().unwrap()
   }
 }

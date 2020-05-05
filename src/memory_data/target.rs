@@ -38,3 +38,26 @@ impl HasPosition for Target {
     }
   }
 }
+
+impl Target {
+  /// Move a creep toward the target
+  pub fn move_to(&self, c: &Creep) -> ReturnCode {
+    let pos = self.pos();
+    c.move_to(&pos)
+  }
+
+  /// Returns true if the creep is in the same room as the target
+  pub fn same_room<T: HasPosition>(&self, p: &T) -> bool {
+    p.pos().room_name() == self.pos().room_name()
+  }
+
+  /// Returns a harvestable reference
+  pub fn as_harvestable(&self) -> Option<Box<dyn Harvestable>> {
+    match self {
+      Target::Source(s) => Some(Box::new(s.unwrap())),
+      Target::Deposit(s) => Some(Box::new(s.unwrap())),
+      Target::Mineral(s) => Some(Box::new(s.unwrap())),
+      _ => None,
+    }
+  }
+}
